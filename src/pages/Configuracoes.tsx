@@ -1,0 +1,412 @@
+import { useEffect, useState } from 'react'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
+import { UserPlus, Trash2, User, Building2 } from 'lucide-react'
+
+type Profile = {
+  id: string
+  name: string
+  role: 'medico' | 'recepcionista' | 'admin'
+  especialidade: string | null
+  created_at?: string
+}
+
+type Tab = 'usuarios' | 'perfil' | 'consultorio'
+
+const roleConfig: Record<string, { label: string; color: string }> = {
+  admin: { label: 'Admin', color: 'bg-purple-50 text-purple-600' },
+  recepcionista: { label: 'Recepcionista', color: 'bg-blue-50 text-blue-600' },
+  medico: { label: 'Médico', color: 'bg-green-50 text-green-600' },
+}
+
+export default function Configuracoes() {
+  const { profile: currentProfile } = useAuth()
+  const [tab, setTab] = useState<Tab>('usuarios')
+  const [users, setUsers] = useState<Profile[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showNewUser, setShowNewUser] = useState(false)
+
+  const [newName, setNewName] = useState('')
+  const [newEmail, setNewEmail] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [newRole, setNewRole] = useState<'medico' | 'recepcionista' | 'admin'>('medico')
+  const [newEspecialidade, setNewEspecialidade] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState('')
+  const [createSuccess, setCreateSuccess] = useState('')
+
+  const [profileName, setProfileName] = useState(currentProfile?.name || '')
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [profileSuccess, setProfileSuccess] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      setLoading(true)
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: true })
+      if (!cancelled) {
+        setUsers(data || [])
+        setLoading(false)
+      }
+    }
+
+    load()
+    return () => { cancelled = true }
+  }, [])
+
+  async function createUser() {
+    if (!newName || !newEmail || !newPassword) {
+      setCreateError('Preencha todos os campos obrigatórios')
+      return
+    }
+    setCreating(true)
+    setCreateError('')
+    setCreateSuccess('')
+
+    const { data, error } = await supabase.auth.admin.createUser({
+      email: newEmail,
+      password: newPassword,
+      email_confirm: true,
+    })
+
+    if (error || !data.user) {
+      setCreateError('Erro ao criar usuário: ' + (error?.message || 'Tente novamente'))
+      setCreating(false)
+      return
+    }
+
+    const { error: profileError } = await supabase.from('profiles').insert({
+      id: data.user.id,
+      name: newName,
+      role: newRole,
+      especialidade: newEspecialidade || null,
+    })
+
+    if (profileError) {
+      setCreateError('Usuário criado mas erro ao salvar perfil')
+      setCreating(false)
+      return
+    }
+
+    setCreateSuccess('Usuário criado com sucesso!')
+    setNewName('')
+    setNewEmail('')
+    setNewPassword('')
+    setNewRole('medico')
+    setNewEspecialidade('')
+    setShowNewUser(false)
+
+    // Recarrega a lista após criar
+    const { data: updated } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: true })
+    setUsers(updated || [])
+    setCreating(false)
+  }
+
+  async function deleteUser(userId: string) {
+    if (!confirm('Tem certeza que deseja remover este usuário?')) return
+    await supabase.from('profiles').delete().eq('id', userId)
+    setUsers(prev => prev.filter(u => u.id !== userId))
+  }
+
+  async function saveProfile() {
+    if (!currentProfile) return
+    setSavingProfile(true)
+    await supabase.from('profiles').update({ name: profileName }).eq('id', currentProfile.id)
+    setProfileSuccess('Perfil atualizado!')
+    setSavingProfile(false)
+    setTimeout(() => setProfileSuccess(''), 3000)
+  }
+
+  function getInitials(name: string) {
+    return name?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || '?'
+  }
+
+  const tabs = [
+    { key: 'usuarios', label: 'Usuários', icon: UserPlus },
+    { key: 'perfil', label: 'Meu Perfil', icon: User },
+    { key: 'consultorio', label: 'Consultório', icon: Building2 },
+  ]
+
+  return (
+    <div className="max-w-4xl mx-auto">
+      {/* Header */}
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-[#3d1f1f]">Configurações</h2>
+        <p className="text-slate-400 text-sm mt-1">Gerencie usuários e preferências do sistema</p>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 bg-white border border-slate-100 rounded-xl p-1 shadow-sm w-fit mb-6">
+        {tabs.map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => setTab(key as Tab)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              tab === key
+                ? 'bg-[#6b2d2d] text-white'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <Icon size={15} />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab: Usuários */}
+      {tab === 'usuarios' && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm text-slate-500">{users.length} usuário{users.length !== 1 ? 's' : ''} cadastrado{users.length !== 1 ? 's' : ''}</p>
+            <button
+              onClick={() => { setShowNewUser(!showNewUser); setCreateError(''); setCreateSuccess('') }}
+              className="flex items-center gap-2 bg-[#6b2d2d] text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-[#5a2424] transition-colors"
+            >
+              <UserPlus size={15} />
+              Novo usuário
+            </button>
+          </div>
+
+          {showNewUser && (
+            <div className="bg-white rounded-2xl shadow-sm p-6 mb-4 border border-[#f5e8e8]">
+              <h3 className="font-semibold text-[#3d1f1f] mb-4">Criar novo usuário</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-slate-600 block mb-1.5">Nome completo *</label>
+                  <input
+                    value={newName}
+                    onChange={e => setNewName(e.target.value)}
+                    placeholder="Dr. João Silva"
+                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#6b2d2d]"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-600 block mb-1.5">Email *</label>
+                  <input
+                    type="email"
+                    value={newEmail}
+                    onChange={e => setNewEmail(e.target.value)}
+                    placeholder="joao@consultorio.com"
+                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#6b2d2d]"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-600 block mb-1.5">Senha provisória *</label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#6b2d2d]"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-600 block mb-1.5">Função *</label>
+                  <select
+                    value={newRole}
+                    onChange={e => setNewRole(e.target.value as typeof newRole)}
+                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#6b2d2d] bg-white"
+                  >
+                    <option value="medico">Médico</option>
+                    <option value="recepcionista">Recepcionista</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+                {newRole === 'medico' && (
+                  <div className="md:col-span-2">
+                    <label className="text-xs font-medium text-slate-600 block mb-1.5">Especialidade</label>
+                    <input
+                      value={newEspecialidade}
+                      onChange={e => setNewEspecialidade(e.target.value)}
+                      placeholder="Ex: Ginecologia e Obstetrícia"
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#6b2d2d]"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {createError && (
+                <div className="mt-3 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5 text-red-600 text-sm">
+                  {createError}
+                </div>
+              )}
+              {createSuccess && (
+                <div className="mt-3 bg-green-50 border border-green-100 rounded-xl px-4 py-2.5 text-green-600 text-sm">
+                  {createSuccess}
+                </div>
+              )}
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={createUser}
+                  disabled={creating}
+                  className="bg-[#6b2d2d] text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-[#5a2424] transition-colors disabled:opacity-50"
+                >
+                  {creating ? 'Criando...' : 'Criar usuário'}
+                </button>
+                <button
+                  onClick={() => setShowNewUser(false)}
+                  className="bg-slate-100 text-slate-600 px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-200 transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            {loading ? (
+              <div className="py-16 text-center text-slate-400 text-sm">Carregando...</div>
+            ) : users.length === 0 ? (
+              <div className="py-16 text-center text-slate-400 text-sm">Nenhum usuário cadastrado</div>
+            ) : (
+              <table className="w-full">
+                <thead className="bg-slate-50 border-b border-slate-100">
+                  <tr>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-slate-400">Usuário</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-slate-400">Função</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-slate-400">Especialidade</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-slate-400"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {users.map(user => {
+                    const role = roleConfig[user.role] || roleConfig['medico']
+                    const isMe = user.id === currentProfile?.id
+                    return (
+                      <tr key={user.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-[#f5e8e8] flex items-center justify-center text-[#6b2d2d] text-sm font-bold">
+                              {getInitials(user.name)}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-slate-700">
+                                {user.name}
+                                {isMe && <span className="ml-2 text-xs text-slate-400">(você)</span>}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${role.color}`}>
+                            {role.label}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm text-slate-400">{user.especialidade || '—'}</span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          {!isMe && (
+                            <button
+                              onClick={() => deleteUser(user.id)}
+                              className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-slate-300 hover:text-red-500 transition-colors ml-auto"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Meu Perfil */}
+      {tab === 'perfil' && (
+        <div className="bg-white rounded-2xl shadow-sm p-6 max-w-lg">
+          <h3 className="font-semibold text-[#3d1f1f] mb-6">Meu Perfil</h3>
+
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-16 h-16 rounded-full bg-[#6b2d2d] flex items-center justify-center text-white text-xl font-bold">
+              {getInitials(currentProfile?.name || '')}
+            </div>
+            <div>
+              <p className="font-medium text-slate-700">{currentProfile?.name}</p>
+              <p className="text-sm text-slate-400 capitalize">{currentProfile?.role}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <div>
+              <label className="text-xs font-medium text-slate-600 block mb-1.5">Nome completo</label>
+              <input
+                value={profileName}
+                onChange={e => setProfileName(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#6b2d2d]"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-600 block mb-1.5">Função</label>
+              <input
+                value={currentProfile?.role || ''}
+                disabled
+                className="w-full border border-slate-100 rounded-xl px-4 py-2.5 text-sm bg-slate-50 text-slate-400 capitalize"
+              />
+            </div>
+            {currentProfile?.especialidade && (
+              <div>
+                <label className="text-xs font-medium text-slate-600 block mb-1.5">Especialidade</label>
+                <input
+                  value={currentProfile.especialidade}
+                  disabled
+                  className="w-full border border-slate-100 rounded-xl px-4 py-2.5 text-sm bg-slate-50 text-slate-400"
+                />
+              </div>
+            )}
+          </div>
+
+          {profileSuccess && (
+            <div className="mt-4 bg-green-50 border border-green-100 rounded-xl px-4 py-2.5 text-green-600 text-sm">
+              {profileSuccess}
+            </div>
+          )}
+
+          <button
+            onClick={saveProfile}
+            disabled={savingProfile}
+            className="mt-5 bg-[#6b2d2d] text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-[#5a2424] transition-colors disabled:opacity-50"
+          >
+            {savingProfile ? 'Salvando...' : 'Salvar alterações'}
+          </button>
+        </div>
+      )}
+
+      {/* Tab: Consultório */}
+      {tab === 'consultorio' && (
+        <div className="bg-white rounded-2xl shadow-sm p-6 max-w-lg">
+          <h3 className="font-semibold text-[#3d1f1f] mb-6">Dados do Consultório</h3>
+          <div className="flex flex-col gap-4">
+            {[
+              { label: 'Nome do consultório', placeholder: 'Consultório PF' },
+              { label: 'CNPJ', placeholder: '00.000.000/0001-00' },
+              { label: 'Telefone', placeholder: '(83) 99999-9999' },
+              { label: 'Endereço', placeholder: 'Rua Exemplo, 123 - João Pessoa, PB' },
+              { label: 'Horário de funcionamento', placeholder: 'Seg a Sex, 8h às 18h' },
+            ].map(({ label, placeholder }) => (
+              <div key={label}>
+                <label className="text-xs font-medium text-slate-600 block mb-1.5">{label}</label>
+                <input
+                  placeholder={placeholder}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#6b2d2d]"
+                />
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-slate-400 mt-4">Em breve — salvamento dos dados do consultório</p>
+        </div>
+      )}
+    </div>
+  )
+}
