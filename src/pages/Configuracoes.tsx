@@ -14,9 +14,9 @@ type Profile = {
 type Tab = 'usuarios' | 'perfil' | 'consultorio'
 
 const roleConfig: Record<string, { label: string; color: string }> = {
-  admin: { label: 'Admin', color: 'bg-purple-50 text-purple-600' },
-  recepcionista: { label: 'Recepcionista', color: 'bg-blue-50 text-blue-600' },
-  medico: { label: 'Médico', color: 'bg-green-50 text-green-600' },
+  admin: { label: 'Admin', color: 'bg-[#fdf6f0] text-[#C9A66B]' },
+  recepcionista: { label: 'Recepcionista', color: 'bg-[#f0f4ff] text-blue-600' },
+  medico: { label: 'Médico', color: 'bg-[#eef4f2] text-[#7A9B8E]' },
 }
 
 export default function Configuracoes() {
@@ -41,7 +41,6 @@ export default function Configuracoes() {
 
   useEffect(() => {
     let cancelled = false
-
     async function load() {
       setLoading(true)
       const { data } = await supabase
@@ -53,7 +52,6 @@ export default function Configuracoes() {
         setLoading(false)
       }
     }
-
     load()
     return () => { cancelled = true }
   }, [])
@@ -100,11 +98,7 @@ export default function Configuracoes() {
     setNewEspecialidade('')
     setShowNewUser(false)
 
-    // Recarrega a lista após criar
-    const { data: updated } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: true })
+    const { data: updated } = await supabase.from('profiles').select('*').order('created_at', { ascending: true })
     setUsers(updated || [])
     setCreating(false)
   }
@@ -134,24 +128,26 @@ export default function Configuracoes() {
     { key: 'consultorio', label: 'Consultório', icon: Building2 },
   ]
 
+  const inputClass = "w-full border border-[#F5F1EA] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7A9B8E] bg-white"
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-[#3d1f1f]">Configurações</h2>
-        <p className="text-slate-400 text-sm mt-1">Gerencie usuários e preferências do sistema</p>
+        <h2 className="text-2xl font-bold text-[#2C3E3A]" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
+          Configurações
+        </h2>
+        <p className="text-[#8B8B8B] text-sm mt-1">Gerencie usuários e preferências do sistema</p>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-white border border-slate-100 rounded-xl p-1 shadow-sm w-fit mb-6">
+      <div className="flex gap-1 bg-white border border-[#F5F1EA] rounded-xl p-1 shadow-sm w-fit mb-6">
         {tabs.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
             onClick={() => setTab(key as Tab)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              tab === key
-                ? 'bg-[#6b2d2d] text-white'
-                : 'text-slate-500 hover:text-slate-700'
+              tab === key ? 'bg-[#7A9B8E] text-white' : 'text-[#8B8B8B] hover:text-[#2C3E3A]'
             }`}
           >
             <Icon size={15} />
@@ -164,10 +160,10 @@ export default function Configuracoes() {
       {tab === 'usuarios' && (
         <div>
           <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-slate-500">{users.length} usuário{users.length !== 1 ? 's' : ''} cadastrado{users.length !== 1 ? 's' : ''}</p>
+            <p className="text-sm text-[#8B8B8B]">{users.length} usuário{users.length !== 1 ? 's' : ''} cadastrado{users.length !== 1 ? 's' : ''}</p>
             <button
               onClick={() => { setShowNewUser(!showNewUser); setCreateError(''); setCreateSuccess('') }}
-              className="flex items-center gap-2 bg-[#6b2d2d] text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-[#5a2424] transition-colors"
+              className="flex items-center gap-2 bg-[#7A9B8E] text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-[#6a8a7e] transition-colors"
             >
               <UserPlus size={15} />
               Novo usuário
@@ -175,45 +171,24 @@ export default function Configuracoes() {
           </div>
 
           {showNewUser && (
-            <div className="bg-white rounded-2xl shadow-sm p-6 mb-4 border border-[#f5e8e8]">
-              <h3 className="font-semibold text-[#3d1f1f] mb-4">Criar novo usuário</h3>
+            <div className="bg-white rounded-2xl shadow-sm p-6 mb-4 border border-[#eef4f2]">
+              <h3 className="font-semibold text-[#2C3E3A] mb-4">Criar novo usuário</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-medium text-slate-600 block mb-1.5">Nome completo *</label>
-                  <input
-                    value={newName}
-                    onChange={e => setNewName(e.target.value)}
-                    placeholder="Dr. João Silva"
-                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#6b2d2d]"
-                  />
+                  <label className="text-xs font-medium text-[#8B8B8B] block mb-1.5">Nome completo *</label>
+                  <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Dra. Ana Silva" className={inputClass} />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-slate-600 block mb-1.5">Email *</label>
-                  <input
-                    type="email"
-                    value={newEmail}
-                    onChange={e => setNewEmail(e.target.value)}
-                    placeholder="joao@consultorio.com"
-                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#6b2d2d]"
-                  />
+                  <label className="text-xs font-medium text-[#8B8B8B] block mb-1.5">Email *</label>
+                  <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="ana@consultorio.com" className={inputClass} />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-slate-600 block mb-1.5">Senha provisória *</label>
-                  <input
-                    type="password"
-                    value={newPassword}
-                    onChange={e => setNewPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#6b2d2d]"
-                  />
+                  <label className="text-xs font-medium text-[#8B8B8B] block mb-1.5">Senha provisória *</label>
+                  <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="••••••••" className={inputClass} />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-slate-600 block mb-1.5">Função *</label>
-                  <select
-                    value={newRole}
-                    onChange={e => setNewRole(e.target.value as typeof newRole)}
-                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#6b2d2d] bg-white"
-                  >
+                  <label className="text-xs font-medium text-[#8B8B8B] block mb-1.5">Função *</label>
+                  <select value={newRole} onChange={e => setNewRole(e.target.value as typeof newRole)} className={inputClass}>
                     <option value="medico">Médico</option>
                     <option value="recepcionista">Recepcionista</option>
                     <option value="admin">Admin</option>
@@ -221,40 +196,24 @@ export default function Configuracoes() {
                 </div>
                 {newRole === 'medico' && (
                   <div className="md:col-span-2">
-                    <label className="text-xs font-medium text-slate-600 block mb-1.5">Especialidade</label>
-                    <input
-                      value={newEspecialidade}
-                      onChange={e => setNewEspecialidade(e.target.value)}
-                      placeholder="Ex: Ginecologia e Obstetrícia"
-                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#6b2d2d]"
-                    />
+                    <label className="text-xs font-medium text-[#8B8B8B] block mb-1.5">Especialidade</label>
+                    <input value={newEspecialidade} onChange={e => setNewEspecialidade(e.target.value)} placeholder="Ex: Ginecologia e Obstetrícia" className={inputClass} />
                   </div>
                 )}
               </div>
 
               {createError && (
-                <div className="mt-3 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5 text-red-600 text-sm">
-                  {createError}
-                </div>
+                <div className="mt-3 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5 text-red-500 text-sm">{createError}</div>
               )}
               {createSuccess && (
-                <div className="mt-3 bg-green-50 border border-green-100 rounded-xl px-4 py-2.5 text-green-600 text-sm">
-                  {createSuccess}
-                </div>
+                <div className="mt-3 bg-[#eef4f2] border border-[#7A9B8E] rounded-xl px-4 py-2.5 text-[#7A9B8E] text-sm">{createSuccess}</div>
               )}
 
               <div className="flex gap-3 mt-4">
-                <button
-                  onClick={createUser}
-                  disabled={creating}
-                  className="bg-[#6b2d2d] text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-[#5a2424] transition-colors disabled:opacity-50"
-                >
+                <button onClick={createUser} disabled={creating} className="bg-[#7A9B8E] text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-[#6a8a7e] transition-colors disabled:opacity-50">
                   {creating ? 'Criando...' : 'Criar usuário'}
                 </button>
-                <button
-                  onClick={() => setShowNewUser(false)}
-                  className="bg-slate-100 text-slate-600 px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-200 transition-colors"
-                >
+                <button onClick={() => setShowNewUser(false)} className="bg-[#F5F1EA] text-[#8B8B8B] px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-[#eef4f2] transition-colors">
                   Cancelar
                 </button>
               </div>
@@ -263,52 +222,45 @@ export default function Configuracoes() {
 
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
             {loading ? (
-              <div className="py-16 text-center text-slate-400 text-sm">Carregando...</div>
+              <div className="py-16 text-center text-[#8B8B8B] text-sm">Carregando...</div>
             ) : users.length === 0 ? (
-              <div className="py-16 text-center text-slate-400 text-sm">Nenhum usuário cadastrado</div>
+              <div className="py-16 text-center text-[#8B8B8B] text-sm">Nenhum usuário cadastrado</div>
             ) : (
               <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-100">
+                <thead className="bg-[#F5F1EA] border-b border-[#F5F1EA]">
                   <tr>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-slate-400">Usuário</th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-slate-400">Função</th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-slate-400">Especialidade</th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-slate-400"></th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-[#8B8B8B]">Usuário</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-[#8B8B8B]">Função</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-[#8B8B8B]">Especialidade</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-[#8B8B8B]"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
+                <tbody className="divide-y divide-[#F5F1EA]">
                   {users.map(user => {
                     const role = roleConfig[user.role] || roleConfig['medico']
                     const isMe = user.id === currentProfile?.id
                     return (
-                      <tr key={user.id} className="hover:bg-slate-50 transition-colors">
+                      <tr key={user.id} className="hover:bg-[#F5F1EA] transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-[#f5e8e8] flex items-center justify-center text-[#6b2d2d] text-sm font-bold">
+                            <div className="w-9 h-9 rounded-full bg-[#eef4f2] flex items-center justify-center text-[#7A9B8E] text-sm font-bold">
                               {getInitials(user.name)}
                             </div>
-                            <div>
-                              <p className="text-sm font-medium text-slate-700">
-                                {user.name}
-                                {isMe && <span className="ml-2 text-xs text-slate-400">(você)</span>}
-                              </p>
-                            </div>
+                            <p className="text-sm font-medium text-[#2C3E3A]">
+                              {user.name}
+                              {isMe && <span className="ml-2 text-xs text-[#8B8B8B]">(você)</span>}
+                            </p>
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${role.color}`}>
-                            {role.label}
-                          </span>
+                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${role.color}`}>{role.label}</span>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="text-sm text-slate-400">{user.especialidade || '—'}</span>
+                          <span className="text-sm text-[#8B8B8B]">{user.especialidade || '—'}</span>
                         </td>
                         <td className="px-6 py-4 text-right">
                           {!isMe && (
-                            <button
-                              onClick={() => deleteUser(user.id)}
-                              className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-slate-300 hover:text-red-500 transition-colors ml-auto"
-                            >
+                            <button onClick={() => deleteUser(user.id)} className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-[#8B8B8B] hover:text-red-500 transition-colors ml-auto">
                               <Trash2 size={15} />
                             </button>
                           )}
@@ -326,58 +278,41 @@ export default function Configuracoes() {
       {/* Tab: Meu Perfil */}
       {tab === 'perfil' && (
         <div className="bg-white rounded-2xl shadow-sm p-6 max-w-lg">
-          <h3 className="font-semibold text-[#3d1f1f] mb-6">Meu Perfil</h3>
-
+          <h3 className="font-semibold text-[#2C3E3A] mb-6" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
+            Meu Perfil
+          </h3>
           <div className="flex items-center gap-4 mb-6">
-            <div className="w-16 h-16 rounded-full bg-[#6b2d2d] flex items-center justify-center text-white text-xl font-bold">
+            <div className="w-16 h-16 rounded-full bg-[#7A9B8E] flex items-center justify-center text-white text-xl font-bold">
               {getInitials(currentProfile?.name || '')}
             </div>
             <div>
-              <p className="font-medium text-slate-700">{currentProfile?.name}</p>
-              <p className="text-sm text-slate-400 capitalize">{currentProfile?.role}</p>
+              <p className="font-medium text-[#2C3E3A]">{currentProfile?.name}</p>
+              <p className="text-sm text-[#8B8B8B] capitalize">{currentProfile?.role}</p>
             </div>
           </div>
 
           <div className="flex flex-col gap-4">
             <div>
-              <label className="text-xs font-medium text-slate-600 block mb-1.5">Nome completo</label>
-              <input
-                value={profileName}
-                onChange={e => setProfileName(e.target.value)}
-                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#6b2d2d]"
-              />
+              <label className="text-xs font-medium text-[#8B8B8B] block mb-1.5">Nome completo</label>
+              <input value={profileName} onChange={e => setProfileName(e.target.value)} className={inputClass} />
             </div>
             <div>
-              <label className="text-xs font-medium text-slate-600 block mb-1.5">Função</label>
-              <input
-                value={currentProfile?.role || ''}
-                disabled
-                className="w-full border border-slate-100 rounded-xl px-4 py-2.5 text-sm bg-slate-50 text-slate-400 capitalize"
-              />
+              <label className="text-xs font-medium text-[#8B8B8B] block mb-1.5">Função</label>
+              <input value={currentProfile?.role || ''} disabled className="w-full border border-[#F5F1EA] rounded-xl px-4 py-2.5 text-sm bg-[#F5F1EA] text-[#8B8B8B] capitalize" />
             </div>
             {currentProfile?.especialidade && (
               <div>
-                <label className="text-xs font-medium text-slate-600 block mb-1.5">Especialidade</label>
-                <input
-                  value={currentProfile.especialidade}
-                  disabled
-                  className="w-full border border-slate-100 rounded-xl px-4 py-2.5 text-sm bg-slate-50 text-slate-400"
-                />
+                <label className="text-xs font-medium text-[#8B8B8B] block mb-1.5">Especialidade</label>
+                <input value={currentProfile.especialidade} disabled className="w-full border border-[#F5F1EA] rounded-xl px-4 py-2.5 text-sm bg-[#F5F1EA] text-[#8B8B8B]" />
               </div>
             )}
           </div>
 
           {profileSuccess && (
-            <div className="mt-4 bg-green-50 border border-green-100 rounded-xl px-4 py-2.5 text-green-600 text-sm">
-              {profileSuccess}
-            </div>
+            <div className="mt-4 bg-[#eef4f2] border border-[#7A9B8E] rounded-xl px-4 py-2.5 text-[#7A9B8E] text-sm">{profileSuccess}</div>
           )}
 
-          <button
-            onClick={saveProfile}
-            disabled={savingProfile}
-            className="mt-5 bg-[#6b2d2d] text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-[#5a2424] transition-colors disabled:opacity-50"
-          >
+          <button onClick={saveProfile} disabled={savingProfile} className="mt-5 bg-[#7A9B8E] text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-[#6a8a7e] transition-colors disabled:opacity-50">
             {savingProfile ? 'Salvando...' : 'Salvar alterações'}
           </button>
         </div>
@@ -386,25 +321,24 @@ export default function Configuracoes() {
       {/* Tab: Consultório */}
       {tab === 'consultorio' && (
         <div className="bg-white rounded-2xl shadow-sm p-6 max-w-lg">
-          <h3 className="font-semibold text-[#3d1f1f] mb-6">Dados do Consultório</h3>
+          <h3 className="font-semibold text-[#2C3E3A] mb-6" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
+            Dados do Consultório
+          </h3>
           <div className="flex flex-col gap-4">
             {[
-              { label: 'Nome do consultório', placeholder: 'Consultório PF' },
+              { label: 'Nome do consultório', placeholder: 'Consultório Dra. Juliana Heidenreich' },
               { label: 'CNPJ', placeholder: '00.000.000/0001-00' },
-              { label: 'Telefone', placeholder: '(83) 99999-9999' },
-              { label: 'Endereço', placeholder: 'Rua Exemplo, 123 - João Pessoa, PB' },
-              { label: 'Horário de funcionamento', placeholder: 'Seg a Sex, 8h às 18h' },
+              { label: 'Telefone', placeholder: '(32) 98877-3770' },
+              { label: 'Endereço', placeholder: 'Barbacena, MG' },
+              { label: 'Horário de funcionamento', placeholder: 'Seg a Sex, 9h às 17h' },
             ].map(({ label, placeholder }) => (
               <div key={label}>
-                <label className="text-xs font-medium text-slate-600 block mb-1.5">{label}</label>
-                <input
-                  placeholder={placeholder}
-                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#6b2d2d]"
-                />
+                <label className="text-xs font-medium text-[#8B8B8B] block mb-1.5">{label}</label>
+                <input placeholder={placeholder} className={inputClass} />
               </div>
             ))}
           </div>
-          <p className="text-xs text-slate-400 mt-4">Em breve — salvamento dos dados do consultório</p>
+          <p className="text-xs text-[#8B8B8B] mt-4">Em breve — salvamento dos dados do consultório</p>
         </div>
       )}
     </div>

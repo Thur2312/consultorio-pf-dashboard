@@ -13,7 +13,7 @@ type Appointment = {
 }
 
 const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-const COLORS = ['#6b2d2d', '#c47a7a']
+const COLORS = ['#7A9B8E', '#E8C4B8']
 
 export default function Relatorios() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
@@ -22,7 +22,6 @@ export default function Relatorios() {
 
   useEffect(() => {
     let cancelled = false
-
     async function load() {
       setLoading(true)
       const { data } = await supabase
@@ -34,7 +33,6 @@ export default function Relatorios() {
         setLoading(false)
       }
     }
-
     load()
     return () => { cancelled = true }
   }, [])
@@ -43,9 +41,7 @@ export default function Relatorios() {
     const now = new Date()
     return apts.filter(apt => {
       const date = new Date(apt.scheduled_at)
-      if (period === 'mes') {
-        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
-      }
+      if (period === 'mes') return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
       if (period === 'trimestre') {
         const threeMonthsAgo = new Date(now)
         threeMonthsAgo.setMonth(now.getMonth() - 3)
@@ -56,7 +52,6 @@ export default function Relatorios() {
   }
 
   const filtered = filterByPeriod(appointments)
-
   const obs = filtered.filter(a => a.service_type === 'obstetricia').length
   const gin = filtered.filter(a => a.service_type === 'ginecologia').length
   const total = filtered.length
@@ -80,23 +75,20 @@ export default function Relatorios() {
     }
   })
 
-  const periodLabel = {
-    mes: 'este mês',
-    trimestre: 'este trimestre',
-    ano: 'este ano',
-  }[period]
+  const periodLabel = { mes: 'este mês', trimestre: 'este trimestre', ano: 'este ano' }[period]
 
   return (
     <div className="max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-[#3d1f1f]">Relatórios</h2>
-          <p className="text-slate-400 text-sm mt-1">Visão geral dos atendimentos</p>
+          <h2 className="text-2xl font-bold text-[#2C3E3A]" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
+            Relatórios
+          </h2>
+          <p className="text-[#8B8B8B] text-sm mt-1">Visão geral dos atendimentos</p>
         </div>
 
-        {/* Filtro de período */}
-        <div className="flex items-center gap-1 bg-white border border-slate-100 rounded-xl p-1 shadow-sm">
+        <div className="flex items-center gap-1 bg-white border border-[#F5F1EA] rounded-xl p-1 shadow-sm">
           {[
             { key: 'mes', label: 'Mês' },
             { key: 'trimestre', label: 'Trimestre' },
@@ -106,9 +98,7 @@ export default function Relatorios() {
               key={key}
               onClick={() => setPeriod(key as typeof period)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                period === key
-                  ? 'bg-[#6b2d2d] text-white'
-                  : 'text-slate-500 hover:text-slate-700'
+                period === key ? 'bg-[#7A9B8E] text-white' : 'text-[#8B8B8B] hover:text-[#2C3E3A]'
               }`}
             >
               {label}
@@ -118,126 +108,93 @@ export default function Relatorios() {
       </div>
 
       {loading ? (
-        <div className="text-center py-16 text-slate-400 text-sm">Carregando...</div>
+        <div className="text-center py-16 text-[#8B8B8B] text-sm">Carregando...</div>
       ) : (
         <>
           {/* Cards de resumo */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             {[
-              { label: 'Total', value: total, color: 'text-[#3d1f1f]' },
-              { label: 'Obstetrícia', value: obs, color: 'text-[#6b2d2d]' },
-              { label: 'Ginecologia', value: gin, color: 'text-[#c47a7a]' },
-              { label: 'Confirmados', value: confirmados, color: 'text-green-600' },
+              { label: 'Total', value: total, color: 'text-[#2C3E3A]' },
+              { label: 'Obstetrícia', value: obs, color: 'text-[#7A9B8E]' },
+              { label: 'Ginecologia', value: gin, color: 'text-[#E8C4B8]' },
+              { label: 'Confirmados', value: confirmados, color: 'text-[#C9A66B]' },
             ].map(({ label, value, color }) => (
-              <div key={label} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                <p className="text-xs text-slate-400 mb-2">{label} — {periodLabel}</p>
+              <div key={label} className="bg-white rounded-2xl p-5 shadow-sm border border-[#F5F1EA]">
+                <p className="text-xs text-[#8B8B8B] mb-2">{label} — {periodLabel}</p>
                 <p className={`text-3xl font-bold ${color}`}>{value}</p>
                 {total > 0 && (
-                  <p className="text-xs text-slate-400 mt-1">
-                    {Math.round((value / total) * 100)}% do total
-                  </p>
+                  <p className="text-xs text-[#8B8B8B] mt-1">{Math.round((value / total) * 100)}% do total</p>
                 )}
               </div>
             ))}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-            {/* Gráfico de pizza */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-              <h3 className="font-semibold text-[#3d1f1f] text-sm mb-4">
-                Distribuição por Especialidade
-              </h3>
+            {/* Pizza */}
+            <div className="bg-white rounded-2xl shadow-sm border border-[#F5F1EA] p-6">
+              <h3 className="font-semibold text-[#2C3E3A] text-sm mb-4">Distribuição por Especialidade</h3>
               {total === 0 ? (
-                <p className="text-slate-400 text-sm text-center py-8">Sem dados no período</p>
+                <p className="text-[#8B8B8B] text-sm text-center py-8">Sem dados no período</p>
               ) : (
                 <ResponsiveContainer width="100%" height={250}>
                   <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={4}
-                      dataKey="value"
-                    >
+                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={4} dataKey="value">
                       {pieData.map((_, index) => (
                         <Cell key={index} fill={COLORS[index]} />
                       ))}
                     </Pie>
-                    <Tooltip
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
-                    />
-                    <Legend
-                      iconType="circle"
-                      iconSize={8}
-                      formatter={(value) => <span className="text-xs text-slate-600">{value}</span>}
-                    />
+                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }} />
+                    <Legend iconType="circle" iconSize={8} formatter={(value) => <span className="text-xs text-[#8B8B8B]">{value}</span>} />
                   </PieChart>
                 </ResponsiveContainer>
               )}
-
               {total > 0 && (
                 <div className="flex gap-4 mt-2 justify-center">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-[#6b2d2d]" />
-                    <span className="text-xs text-slate-500">Obstetrícia ({obs})</span>
+                    <div className="w-3 h-3 rounded-full bg-[#7A9B8E]" />
+                    <span className="text-xs text-[#8B8B8B]">Obstetrícia ({obs})</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-[#c47a7a]" />
-                    <span className="text-xs text-slate-500">Ginecologia ({gin})</span>
+                    <div className="w-3 h-3 rounded-full bg-[#E8C4B8]" />
+                    <span className="text-xs text-[#8B8B8B]">Ginecologia ({gin})</span>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Gráfico de barras por mês */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-              <h3 className="font-semibold text-[#3d1f1f] text-sm mb-4">
+            {/* Barras */}
+            <div className="bg-white rounded-2xl shadow-sm border border-[#F5F1EA] p-6">
+              <h3 className="font-semibold text-[#2C3E3A] text-sm mb-4">
                 Consultas por Mês — {new Date().getFullYear()}
               </h3>
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={barData} barSize={8}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis
-                    dataKey="month"
-                    tick={{ fontSize: 10, fill: '#94a3b8' }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 10, fill: '#94a3b8' }}
-                    axisLine={false}
-                    tickLine={false}
-                    allowDecimals={false}
-                  />
-                  <Tooltip
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
-                  />
-                  <Bar dataKey="Obstetrícia" fill="#6b2d2d" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Ginecologia" fill="#c47a7a" radius={[4, 4, 0, 0]} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F5F1EA" />
+                  <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#8B8B8B' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: '#8B8B8B' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }} />
+                  <Bar dataKey="Obstetrícia" fill="#7A9B8E" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Ginecologia" fill="#E8C4B8" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Tabela resumo por status */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-            <h3 className="font-semibold text-[#3d1f1f] text-sm mb-4">
-              Resumo por Status — {periodLabel}
-            </h3>
+          {/* Resumo por status */}
+          <div className="bg-white rounded-2xl shadow-sm border border-[#F5F1EA] p-6">
+            <h3 className="font-semibold text-[#2C3E3A] text-sm mb-4">Resumo por Status — {periodLabel}</h3>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
-                { label: 'Confirmados', value: confirmados, dot: 'bg-green-400' },
-                { label: 'Em Atendimento', value: filtered.filter(a => a.status === 'em_atendimento').length, dot: 'bg-[#6b2d2d]' },
-                { label: 'Aguardando', value: filtered.filter(a => a.status === 'aguardando').length, dot: 'bg-amber-400' },
+                { label: 'Confirmados', value: confirmados, dot: 'bg-[#7A9B8E]' },
+                { label: 'Em Atendimento', value: filtered.filter(a => a.status === 'em_atendimento').length, dot: 'bg-[#C9A66B]' },
+                { label: 'Aguardando', value: filtered.filter(a => a.status === 'aguardando').length, dot: 'bg-[#E8C4B8]' },
                 { label: 'Cancelados', value: cancelados, dot: 'bg-red-400' },
               ].map(({ label, value, dot }) => (
-                <div key={label} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50">
-                  <div className={`w-2.5 h-2.5 rounded-full flex ${dot}`} />
+                <div key={label} className="flex items-center gap-3 p-3 rounded-xl bg-[#F5F1EA]">
+                  <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dot}`} />
                   <div>
-                    <p className="text-xs text-slate-400">{label}</p>
-                    <p className="text-lg font-bold text-[#3d1f1f]">{value}</p>
+                    <p className="text-xs text-[#8B8B8B]">{label}</p>
+                    <p className="text-lg font-bold text-[#2C3E3A]">{value}</p>
                   </div>
                 </div>
               ))}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { Search } from 'lucide-react'
+import { Search, Calendar } from 'lucide-react'
 
 type Lead = {
   id: string
@@ -8,6 +8,7 @@ type Lead = {
   status: string
   first_message: string
   created_at: string
+  appointment_at: string | null
 }
 
 const statusConfig: Record<string, { label: string; color: string; dot: string }> = {
@@ -74,6 +75,13 @@ export default function Leads() {
     return new Date(dateStr).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
   }
 
+  function formatAppointment(dateStr: string) {
+    const d = new Date(dateStr)
+    const date = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    const time = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    return { date, time }
+  }
+
   return (
     <div className="max-w-5xl mx-auto">
       {/* Header */}
@@ -86,7 +94,7 @@ export default function Leads() {
         </div>
       </div>
 
-      {/* Filtros por status */}
+      {/* Filtros */}
       <div className="flex gap-2 mb-4 flex-wrap">
         {[
           { key: 'todos', label: 'Todos' },
@@ -151,12 +159,14 @@ export default function Leads() {
                 <th className="text-left px-6 py-3 text-xs font-medium text-[#8B8B8B]">Telefone</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-[#8B8B8B]">Primeira Mensagem</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-[#8B8B8B]">Status</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-[#8B8B8B]">Data</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-[#8B8B8B]">Consulta agendada</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-[#8B8B8B]">Cadastro</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F5F1EA]">
               {filtered.map(lead => {
                 const status = statusConfig[lead.status] || statusConfig['novo']
+                const appt = lead.appointment_at ? formatAppointment(lead.appointment_at) : null
                 return (
                   <tr key={lead.id} onClick={() => setSelectedLead(lead)} className="hover:bg-[#F5F1EA] cursor-pointer transition-colors">
                     <td className="px-6 py-4">
@@ -170,6 +180,19 @@ export default function Leads() {
                         <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
                         {status.label}
                       </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {appt ? (
+                        <div className="flex items-center gap-1.5">
+                          <Calendar size={13} className="text-[#7A9B8E] shrink-0" />
+                          <div className="text-xs text-[#2C3E3A]">
+                            <p className="font-medium">{appt.date}</p>
+                            <p className="text-[#8B8B8B]">{appt.time}</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-[#c8c4be]">—</span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-xs text-[#8B8B8B]">
@@ -197,7 +220,7 @@ export default function Leads() {
                 <h3 className="text-lg font-bold text-[#2C3E3A]" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
                   {selectedLead.phone}
                 </h3>
-                <p className="text-xs text-[#8B8B8B]">{formatDate(selectedLead.created_at)} às {formatTime(selectedLead.created_at)}</p>
+                <p className="text-xs text-[#8B8B8B]">Cadastrado em {formatDate(selectedLead.created_at)} às {formatTime(selectedLead.created_at)}</p>
               </div>
             </div>
 
@@ -205,6 +228,18 @@ export default function Leads() {
               <p className="text-xs text-[#8B8B8B] mb-1">Primeira mensagem</p>
               <p className="text-sm text-[#2C3E3A]">{selectedLead.first_message || 'Sem mensagem registrada'}</p>
             </div>
+
+            {selectedLead.appointment_at && (
+              <div className="bg-[#eef4f2] rounded-xl p-4 mb-4 flex items-center gap-3">
+                <Calendar size={16} className="text-[#7A9B8E] shrink-0" />
+                <div>
+                  <p className="text-xs text-[#8B8B8B]">Consulta agendada para</p>
+                  <p className="text-sm font-medium text-[#2C3E3A]">
+                    {formatAppointment(selectedLead.appointment_at).date} às {formatAppointment(selectedLead.appointment_at).time}
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="mb-6">
               <p className="text-xs text-[#8B8B8B] mb-2">Alterar status</p>

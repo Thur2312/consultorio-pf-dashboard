@@ -7,6 +7,8 @@ import Leads from './pages/Leads'
 import Agenda from './pages/Agenda'
 import Relatorios from './pages/Relatorios'
 import Configuracoes from './pages/Configuracoes'
+import Agendar from './pages/Agendar'
+
 
 function PrivateLayout() {
   const { user, loading } = useAuth()
@@ -31,6 +33,8 @@ function PrivateLayout() {
           <Route path="/agenda" element={<Agenda />} />
           <Route path="/relatorios" element={<Relatorios />} />
           <Route path="/configuracoes" element={<Configuracoes />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/agendar" element={<Agendar />} />
         </Routes>
       </main>
     </div>
