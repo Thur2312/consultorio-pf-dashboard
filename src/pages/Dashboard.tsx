@@ -104,12 +104,9 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
     ctx.clearRect(0, 0, c.width, c.height)
     ctx.beginPath()
     data.forEach((v, i) => {
-    const x = i * w, y = h - ((v - mn) / r) * (h - 4) - 2
-    if (i === 0) {
-        ctx.moveTo(x, y)
-    } else {
-        ctx.lineTo(x, y)
-    }
+      const x = i * w, y = h - ((v - mn) / r) * (h - 4) - 2
+      if (i === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
     })
     ctx.strokeStyle = color
     ctx.lineWidth = 1.5
@@ -126,14 +123,14 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
 // ─── Configs ──────────────────────────────────────────────────────────────────
 
 const tipoConfig = {
-  rotina:   { label: 'Rotina',   bg: 'bg-[#f5e8e8] text-[#6b2d2d]', dot: '#6b2d2d' },
-  retorno:  { label: 'Retorno',  bg: 'bg-blue-50 text-blue-600',     dot: '#2563eb' },
-  urgencia: { label: 'Urgência', bg: 'bg-amber-50 text-amber-600',   dot: '#d97706' },
+  rotina:   { label: 'Rotina',   bg: 'bg-[#eef4f2] text-[#7A9B8E]', dot: '#7A9B8E' },
+  retorno:  { label: 'Retorno',  bg: 'bg-[#fdf6f0] text-[#C9A66B]', dot: '#C9A66B' },
+  urgencia: { label: 'Urgência', bg: 'bg-[#fef3f2] text-[#e05c4b]', dot: '#e05c4b' },
 }
 
 const statusConfig = {
-  confirmada: { label: 'Confirmada', className: 'bg-green-50 text-green-600'     },
-  pendente:   { label: 'Pendente',   className: 'bg-amber-50 text-amber-600'     },
+  confirmada: { label: 'Confirmada', className: 'bg-[#eef4f2] text-[#7A9B8E]'   },
+  pendente:   { label: 'Pendente',   className: 'bg-[#fdf6f0] text-[#C9A66B]'   },
   realizada:  { label: 'Realizada',  className: 'bg-slate-100 text-slate-500'    },
   cancelada:  { label: 'Cancelada',  className: 'bg-red-50 text-red-500'         },
   faltou:     { label: 'Faltou',     className: 'bg-orange-50 text-orange-500'   },
@@ -156,11 +153,11 @@ export default function Dashboard() {
     cancelamentosOntem: 0,
   })
 
-  const [agendaHoje, setAgendaHoje]   = useState<Consulta[]>([])
-  const [weekData, setWeekData]       = useState<WeekData>([])
-  const [tiposData, setTiposData]     = useState<TiposData>({ rotina: 0, retorno: 0, urgencia: 0 })
-  const [notifs, setNotifs]           = useState<Notif[]>([])
-  const [loading, setLoading]         = useState(true)
+  const [agendaHoje, setAgendaHoje] = useState<Consulta[]>([])
+  const [weekData, setWeekData]     = useState<WeekData>([])
+  const [tiposData, setTiposData]   = useState<TiposData>({ rotina: 0, retorno: 0, urgencia: 0 })
+  const [notifs, setNotifs]         = useState<Notif[]>([])
+  const [loading, setLoading]       = useState(true)
 
   useEffect(() => {
     let cancelled = false
@@ -189,25 +186,19 @@ export default function Dashboard() {
         supabase.from('consultas').select('*')
           .gte('data_hora', inicioHoje).lte('data_hora', fimHoje)
           .neq('status', 'cancelada').order('data_hora', { ascending: true }),
-
         supabase.from('consultas').select('id')
           .gte('data_hora', inicioOntem).lte('data_hora', fimOntem)
           .neq('status', 'cancelada'),
-
         supabase.from('consultas').select('id, data_hora')
           .eq('status', 'pendente')
           .gte('data_hora', new Date().toISOString())
           .lte('data_hora', em7dias),
-
         supabase.from('consultas').select('id')
           .eq('status', 'cancelada').gte('data_hora', inicioHoje).lte('data_hora', fimHoje),
-
         supabase.from('consultas').select('id')
           .eq('status', 'cancelada').gte('data_hora', inicioOntem).lte('data_hora', fimOntem),
-
         supabase.from('consultas').select('data_hora, tipo')
           .gte('data_hora', inicioMes).neq('status', 'cancelada'),
-
         supabase.from('consultas')
           .select('id, paciente_nome, status, data_hora')
           .order('updated_at', { ascending: false }).limit(3),
@@ -238,10 +229,10 @@ export default function Dashboard() {
 
       const notifsMapped: Notif[] = (recentes ?? []).map(r => {
         if (r.status === 'cancelada')
-          return { id: r.id, icon: 'x' as const,     text: `${r.paciente_nome} cancelou — ${formatHora(r.data_hora)}`, time: 'recente', bg: 'bg-red-50',    tc: 'text-red-500'    }
+          return { id: r.id, icon: 'x' as const, text: `${r.paciente_nome} cancelou — ${formatHora(r.data_hora)}`, time: 'recente', bg: 'bg-red-50', tc: 'text-red-500' }
         if (r.status === 'confirmada')
-          return { id: r.id, icon: 'check' as const,  text: `${r.paciente_nome} confirmou presença`,                    time: 'recente', bg: 'bg-green-50',  tc: 'text-green-600'  }
-        return   { id: r.id, icon: 'clock' as const,  text: `${r.paciente_nome} não confirmou — ${formatHora(r.data_hora)}`, time: 'recente', bg: 'bg-amber-50', tc: 'text-amber-600' }
+          return { id: r.id, icon: 'check' as const, text: `${r.paciente_nome} confirmou presença`, time: 'recente', bg: 'bg-[#eef4f2]', tc: 'text-[#7A9B8E]' }
+        return { id: r.id, icon: 'clock' as const, text: `${r.paciente_nome} não confirmou — ${formatHora(r.data_hora)}`, time: 'recente', bg: 'bg-[#fdf6f0]', tc: 'text-[#C9A66B]' }
       })
 
       setKpi({
@@ -276,18 +267,18 @@ export default function Dashboard() {
     }
   }, [])
 
-  const animConsultas      = useCountUp(kpi.consultasHoje)
-  const animPendentes      = useCountUp(kpi.pendentesConfirmacao)
-  const animCancelamentos  = useCountUp(kpi.cancelamentos)
+  const animConsultas     = useCountUp(kpi.consultasHoje)
+  const animPendentes     = useCountUp(kpi.pendentesConfirmacao)
+  const animCancelamentos = useCountUp(kpi.cancelamentos)
 
   const deltaConsultas     = kpi.consultasHoje - kpi.consultasOntem
   const deltaCancelamentos = kpi.cancelamentos - kpi.cancelamentosOntem
   const totalTipos         = tiposData.rotina + tiposData.retorno + tiposData.urgencia || 1
 
   const metas: Meta[] = [
-    { label: 'Consultas no mês (meta: 200)',    valor: weekData.reduce((a, w) => a + w.total, 0), meta: 200, color: '#6b2d2d' },
-    { label: 'Taxa de confirmação (meta: 95%)', valor: Math.round(((kpi.consultasHoje - kpi.pendentesConfirmacao) / Math.max(kpi.consultasHoje, 1)) * 95), meta: 95, color: '#d97706' },
-    { label: 'Pacientes novos (meta: 30)',       valor: 22, meta: 30, color: '#2563eb' },
+    { label: 'Consultas no mês (meta: 200)',    valor: weekData.reduce((a, w) => a + w.total, 0), meta: 200, color: '#7A9B8E' },
+    { label: 'Taxa de confirmação (meta: 95%)', valor: Math.round(((kpi.consultasHoje - kpi.pendentesConfirmacao) / Math.max(kpi.consultasHoje, 1)) * 95), meta: 95, color: '#C9A66B' },
+    { label: 'Pacientes novos (meta: 30)',       valor: 22, meta: 30, color: '#E8C4B8' },
   ]
 
   const notifIconMap = {
@@ -304,7 +295,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#6b2d2d] border-t-transparent" />
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#7A9B8E] border-t-transparent" />
       </div>
     )
   }
@@ -314,85 +305,90 @@ export default function Dashboard() {
 
       {/* Header */}
       <div className="mb-6">
-        <p className="text-sm text-slate-400 capitalize">{diaSemana}, {dataFormatada}</p>
+        <p className="text-sm text-[#8B8B8B] capitalize">{diaSemana}, {dataFormatada}</p>
         <div className="mt-1 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-[#3d1f1f]">Olá, {primeiroNome} 👋</h2>
-          <span className="flex items-center gap-1.5 rounded-full bg-[#f5e8e8] px-3 py-1 text-xs font-medium text-[#6b2d2d]">
+          <h2
+            className="text-2xl font-bold text-[#2C3E3A]"
+            style={{ fontFamily: 'Cormorant Garamond, serif' }}
+          >
+            Olá, {primeiroNome} 👋
+          </h2>
+          <span className="flex items-center gap-1.5 rounded-full bg-[#eef4f2] px-3 py-1 text-xs font-medium text-[#7A9B8E]">
             <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" />
             Ao vivo
           </span>
         </div>
-        <p className="mt-1 text-sm text-slate-400">Resumo do dia e métricas do consultório</p>
+        <p className="mt-1 text-sm text-[#8B8B8B]">Resumo do dia e métricas do consultório</p>
       </div>
 
       {/* KPIs */}
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
 
-        <div className="rounded-2xl border border-[#f5e8e8] bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium text-slate-600">Consultas hoje</p>
-          <p className="mt-1 text-3xl font-bold text-[#3d1f1f]">{animConsultas}</p>
-          <p className={`mt-1 flex items-center gap-1 text-xs ${deltaConsultas >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+        <div className="rounded-2xl border border-[#F5F1EA] bg-white p-4 shadow-sm">
+          <p className="text-xs font-medium text-[#8B8B8B]">Consultas hoje</p>
+          <p className="mt-1 text-3xl font-bold text-[#2C3E3A]">{animConsultas}</p>
+          <p className={`mt-1 flex items-center gap-1 text-xs ${deltaConsultas >= 0 ? 'text-[#7A9B8E]' : 'text-red-500'}`}>
             {deltaConsultas >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
             {deltaConsultas >= 0 ? '+' : ''}{deltaConsultas} vs ontem
           </p>
-          <Sparkline data={[8, 10, 7, 12, 9, 11, kpi.consultasHoje]} color="#6b2d2d" />
+          <Sparkline data={[8, 10, 7, 12, 9, 11, kpi.consultasHoje]} color="#7A9B8E" />
         </div>
 
-        <div className="rounded-2xl border border-[#f5e8e8] bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium text-slate-600">Próxima disponível</p>
+        <div className="rounded-2xl border border-[#F5F1EA] bg-white p-4 shadow-sm">
+          <p className="text-xs font-medium text-[#8B8B8B]">Próxima disponível</p>
           {kpi.proximaDisponivel ? (
             <>
-              <p className="mt-1 text-lg font-bold text-[#3d1f1f]">{formatHora(kpi.proximaDisponivel)}</p>
-              <p className="mt-1 flex items-center gap-1 text-xs text-slate-400">
+              <p className="mt-1 text-lg font-bold text-[#2C3E3A]">{formatHora(kpi.proximaDisponivel)}</p>
+              <p className="mt-1 flex items-center gap-1 text-xs text-[#8B8B8B]">
                 <Clock size={11} /> {tempoAte(kpi.proximaDisponivel)}
               </p>
             </>
           ) : (
-            <p className="mt-1 text-base font-semibold text-slate-400">Sem horários</p>
+            <p className="mt-1 text-base font-semibold text-[#8B8B8B]">Sem horários</p>
           )}
           <div className="mt-2 flex gap-1">
             {Array.from({ length: kpi.totalSlots }).map((_, i) => (
               <div
                 key={i}
                 className="h-1.5 flex-1 rounded-full"
-                style={{ background: i < kpi.slotsOcupados ? '#6b2d2d' : '#f5e8e8' }}
+                style={{ background: i < kpi.slotsOcupados ? '#7A9B8E' : '#F5F1EA' }}
               />
             ))}
           </div>
-          <p className="mt-1 text-[10px] text-slate-400">
+          <p className="mt-1 text-[10px] text-[#8B8B8B]">
             {kpi.slotsOcupados} de {kpi.totalSlots} slots ocupados
           </p>
         </div>
 
-        <div className="rounded-2xl border border-[#f5e8e8] bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium text-slate-600">Pendentes de confirmação</p>
-          <p className="mt-1 text-3xl font-bold text-[#3d1f1f]">{animPendentes}</p>
-          <p className="mt-1 flex items-center gap-1 text-xs text-amber-600">
+        <div className="rounded-2xl border border-[#F5F1EA] bg-white p-4 shadow-sm">
+          <p className="text-xs font-medium text-[#8B8B8B]">Pendentes de confirmação</p>
+          <p className="mt-1 text-3xl font-bold text-[#2C3E3A]">{animPendentes}</p>
+          <p className="mt-1 flex items-center gap-1 text-xs text-[#C9A66B]">
             <AlertCircle size={11} /> {kpi.pendentesVencemHoje} vencem hoje
           </p>
-          <Sparkline data={[4, 6, 3, 7, 5, 6, kpi.pendentesConfirmacao]} color="#d97706" />
+          <Sparkline data={[4, 6, 3, 7, 5, 6, kpi.pendentesConfirmacao]} color="#C9A66B" />
         </div>
 
-        <div className="rounded-2xl border border-[#f5e8e8] bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium text-slate-600">Cancelamentos</p>
-          <p className="mt-1 text-3xl font-bold text-[#3d1f1f]">{animCancelamentos}</p>
-          <p className={`mt-1 flex items-center gap-1 text-xs ${deltaCancelamentos <= 0 ? 'text-green-600' : 'text-red-500'}`}>
+        <div className="rounded-2xl border border-[#F5F1EA] bg-white p-4 shadow-sm">
+          <p className="text-xs font-medium text-[#8B8B8B]">Cancelamentos</p>
+          <p className="mt-1 text-3xl font-bold text-[#2C3E3A]">{animCancelamentos}</p>
+          <p className={`mt-1 flex items-center gap-1 text-xs ${deltaCancelamentos <= 0 ? 'text-[#7A9B8E]' : 'text-red-500'}`}>
             {deltaCancelamentos <= 0 ? <TrendingDown size={12} /> : <TrendingUp size={12} />}
             {deltaCancelamentos > 0 ? '+' : ''}{deltaCancelamentos} vs ontem
           </p>
-          <Sparkline data={[3, 4, 2, 5, 3, 2, kpi.cancelamentos]} color="#a32d2d" />
+          <Sparkline data={[3, 4, 2, 5, 3, 2, kpi.cancelamentos]} color="#E8C4B8" />
         </div>
       </div>
 
       {/* Gráficos */}
       <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-5">
 
-        <div className="lg:col-span-3 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="lg:col-span-3 rounded-2xl border border-[#F5F1EA] bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
-            <p className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+            <p className="flex items-center gap-1.5 text-xs font-medium text-[#8B8B8B]">
               <BarChart2 size={13} /> Consultas por semana
             </p>
-            <p className="text-xs text-slate-400 capitalize">
+            <p className="text-xs text-[#8B8B8B] capitalize">
               {hoje.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
             </p>
           </div>
@@ -403,7 +399,7 @@ export default function Dashboard() {
                 datasets: [{
                   data: weekData.map(w => w.total),
                   backgroundColor: weekData.map((_, i) =>
-                    i === weekData.length - 1 ? '#3d1f1f' : '#6b2d2d'
+                    i === weekData.length - 1 ? '#2C3E3A' : '#7A9B8E'
                   ),
                   borderRadius: 6,
                   borderSkipped: false,
@@ -417,16 +413,16 @@ export default function Dashboard() {
                   tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y} consultas` } },
                 },
                 scales: {
-                  x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#94a3b8' } },
-                  y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 11 }, color: '#94a3b8' }, beginAtZero: true },
+                  x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#8B8B8B' } },
+                  y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 11 }, color: '#8B8B8B' }, beginAtZero: true },
                 },
               }}
             />
           </div>
         </div>
 
-        <div className="lg:col-span-2 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-          <p className="mb-3 flex items-center gap-1.5 text-xs font-medium text-slate-600">
+        <div className="lg:col-span-2 rounded-2xl border border-[#F5F1EA] bg-white p-5 shadow-sm">
+          <p className="mb-3 flex items-center gap-1.5 text-xs font-medium text-[#8B8B8B]">
             <PieChart size={13} /> Tipos de consulta
           </p>
           <div className="mb-3 flex flex-col gap-2">
@@ -434,10 +430,10 @@ export default function Dashboard() {
               const cfg = tipoConfig[t]
               const pct = Math.round((tiposData[t] / totalTipos) * 100)
               return (
-                <span key={t} className="flex items-center gap-1.5 text-xs text-slate-500">
+                <span key={t} className="flex items-center gap-1.5 text-xs text-[#8B8B8B]">
                   <span className="inline-block h-2 w-2 rounded-sm" style={{ background: cfg.dot }} />
                   {cfg.label}
-                  <span className="ml-auto font-medium text-slate-700">{pct}%</span>
+                  <span className="ml-auto font-medium text-[#2C3E3A]">{pct}%</span>
                 </span>
               )
             })}
@@ -448,7 +444,7 @@ export default function Dashboard() {
                 labels: ['Rotina', 'Retorno', 'Urgência'],
                 datasets: [{
                   data: [tiposData.rotina, tiposData.retorno, tiposData.urgencia],
-                  backgroundColor: ['#6b2d2d', '#2563eb', '#d97706'],
+                  backgroundColor: ['#7A9B8E', '#C9A66B', '#E8C4B8'],
                   borderWidth: 0,
                   hoverOffset: 4,
                 }],
@@ -468,26 +464,26 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
 
         {/* Agenda */}
-        <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
-            <p className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+        <div className="rounded-2xl border border-[#F5F1EA] bg-white shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between border-b border-[#F5F1EA] px-5 py-3.5">
+            <p className="flex items-center gap-1.5 text-xs font-medium text-[#8B8B8B]">
               <CalendarCheck size={13} /> Agenda de hoje
             </p>
-            <button className="text-xs font-medium text-[#6b2d2d] hover:text-[#5a2424] transition-colors">
+            <button className="text-xs font-medium text-[#7A9B8E] hover:text-[#6a8a7e] transition-colors">
               Ver agenda →
             </button>
           </div>
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-[#F5F1EA]">
             {agendaHoje.length === 0 ? (
-              <p className="py-10 text-center text-sm text-slate-300">Nenhuma consulta hoje</p>
+              <p className="py-10 text-center text-sm text-[#8B8B8B]">Nenhuma consulta hoje</p>
             ) : agendaHoje.map(c => {
               const tipo   = tipoConfig[c.tipo]    ?? tipoConfig.rotina
               const status = statusConfig[c.status] ?? statusConfig.pendente
               return (
-                <div key={c.id} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
+                <div key={c.id} className="flex items-center gap-3 px-5 py-3 hover:bg-[#F5F1EA] transition-colors">
                   <div className="h-2 w-2 flex rounded-full" style={{ background: tipo.dot }} />
-                  <span className="w-10 flex text-xs text-slate-400">{formatHora(c.data_hora)}</span>
-                  <span className="flex-1 text-sm font-medium text-slate-700">{c.paciente_nome}</span>
+                  <span className="w-10 flex text-xs text-[#8B8B8B]">{formatHora(c.data_hora)}</span>
+                  <span className="flex-1 text-sm font-medium text-[#2C3E3A]">{c.paciente_nome}</span>
                   <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-medium ${tipo.bg}`}>
                     {tipo.label}
                   </span>
@@ -501,9 +497,9 @@ export default function Dashboard() {
         </div>
 
         {/* Metas + Alertas */}
-        <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
-          <div className="border-b border-slate-100 px-5 py-3.5">
-            <p className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+        <div className="rounded-2xl border border-[#F5F1EA] bg-white shadow-sm overflow-hidden">
+          <div className="border-b border-[#F5F1EA] px-5 py-3.5">
+            <p className="flex items-center gap-1.5 text-xs font-medium text-[#8B8B8B]">
               <Target size={13} /> Metas do mês
             </p>
           </div>
@@ -513,10 +509,10 @@ export default function Dashboard() {
               return (
                 <div key={m.label}>
                   <div className="mb-1.5 flex items-center justify-between">
-                    <span className="text-xs text-slate-500">{m.label}</span>
-                    <span className="text-xs font-medium text-slate-700">{pct}%</span>
+                    <span className="text-xs text-[#8B8B8B]">{m.label}</span>
+                    <span className="text-xs font-medium text-[#2C3E3A]">{pct}%</span>
                   </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-[#F5F1EA]">
                     <div
                       className="h-full rounded-full transition-all duration-1000"
                       style={{ width: `${pct}%`, background: m.color }}
@@ -527,22 +523,22 @@ export default function Dashboard() {
             })}
           </div>
 
-          <div className="border-t border-slate-100 px-5 py-3.5">
-            <p className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+          <div className="border-t border-[#F5F1EA] px-5 py-3.5">
+            <p className="flex items-center gap-1.5 text-xs font-medium text-[#8B8B8B]">
               <Bell size={13} /> Alertas recentes
             </p>
           </div>
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-[#F5F1EA]">
             {notifs.length === 0 ? (
-              <p className="py-6 text-center text-sm text-slate-300">Nenhum alerta</p>
+              <p className="py-6 text-center text-sm text-[#8B8B8B]">Nenhum alerta</p>
             ) : notifs.map(n => (
-              <div key={n.id} className="flex items-start gap-2.5 px-5 py-3 hover:bg-slate-50 transition-colors">
+              <div key={n.id} className="flex items-start gap-2.5 px-5 py-3 hover:bg-[#F5F1EA] transition-colors">
                 <div className={`mt-0.5 flex h-6 w-6 items-center justify-center rounded-lg ${n.bg} ${n.tc}`}>
                   {notifIconMap[n.icon]}
                 </div>
                 <div>
-                  <p className="text-xs leading-snug text-slate-500">{n.text}</p>
-                  <p className="mt-0.5 text-[10px] text-slate-300">{n.time}</p>
+                  <p className="text-xs leading-snug text-[#8B8B8B]">{n.text}</p>
+                  <p className="mt-0.5 text-[10px] text-[#8B8B8B] opacity-60">{n.time}</p>
                 </div>
               </div>
             ))}

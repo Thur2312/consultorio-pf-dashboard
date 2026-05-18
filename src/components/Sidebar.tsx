@@ -13,13 +13,16 @@ export default function Sidebar() {
   const { profile, signOut } = useAuth()
 
   return (
-    <aside className="w-60 min-h-screen bg-white border-r border-slate-100 flex flex-col py-6 px-4">
+    <aside className="w-60 min-h-screen bg-white border-r border-[#F5F1EA] flex flex-col py-6 px-4">
       {/* Logo */}
       <div className="px-2 mb-8">
-        <h1 className="text-lg font-bold text-[#6b2d2d]">Consultório PF</h1>
-        {profile?.name && (
-          <p className="text-xs text-slate-400 mt-0.5">{profile.name}</p>
-        )}
+        <h1
+          className="text-lg font-bold text-[#2C3E3A]"
+          style={{ fontFamily: 'Cormorant Garamond, serif' }}
+        >
+          Dra. Juliana
+        </h1>
+        <p className="text-xs text-[#8B8B8B] mt-0.5">Ginecologia & Obstetrícia</p>
       </div>
 
       {/* Navegação */}
@@ -32,8 +35,8 @@ export default function Sidebar() {
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                 isActive
-                  ? 'bg-[#f5e8e8] text-[#6b2d2d] border-l-4 border-[#6b2d2d]'
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                  ? 'bg-[#7A9B8E] text-white'
+                  : 'text-[#8B8B8B] hover:bg-[#F5F1EA] hover:text-[#2C3E3A]'
               }`
             }
           >
@@ -44,14 +47,14 @@ export default function Sidebar() {
       </nav>
 
       {/* Rodapé */}
-      <div className="flex flex-col gap-1 mt-4 border-t border-slate-100 pt-4">
+      <div className="flex flex-col gap-1 mt-4 border-t border-[#F5F1EA] pt-4">
         <NavLink
           to="/configuracoes"
           className={({ isActive }) =>
             `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
               isActive
-                ? 'bg-[#f5e8e8] text-[#6b2d2d]'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                ? 'bg-[#7A9B8E] text-white'
+                : 'text-[#8B8B8B] hover:bg-[#F5F1EA] hover:text-[#2C3E3A]'
             }`
           }
         >
@@ -61,7 +64,7 @@ export default function Sidebar() {
 
         <button
           onClick={signOut}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all w-full text-left"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#8B8B8B] hover:bg-red-50 hover:text-red-500 transition-all w-full text-left"
         >
           <LogOut size={18} />
           Sair
@@ -70,13 +73,13 @@ export default function Sidebar() {
 
       {/* Avatar do usuário */}
       {profile && (
-        <div className="mt-4 flex items-center gap-3 px-3 py-3 bg-slate-50 rounded-xl">
-          <div className="w-8 h-8 rounded-full bg-[#6b2d2d] flex items-center justify-center text-white text-xs font-bold">
+        <div className="mt-4 flex items-center gap-3 px-3 py-3 bg-[#F5F1EA] rounded-xl">
+          <div className="w-8 h-8 rounded-full bg-[#7A9B8E] flex items-center justify-center text-white text-xs font-bold">
             {profile.name?.charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-slate-700 truncate">{profile.name}</p>
-            <p className="text-xs text-slate-400 capitalize">{profile.role}</p>
+            <p className="text-xs font-medium text-[#2C3E3A] truncate">{profile.name}</p>
+            <p className="text-xs text-[#8B8B8B] capitalize">{profile.role}</p>
           </div>
         </div>
       )}
