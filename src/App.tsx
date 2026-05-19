@@ -8,12 +8,12 @@ import Agenda from './pages/Agenda'
 import Relatorios from './pages/Relatorios'
 import Configuracoes from './pages/Configuracoes'
 import Agendar from './pages/Agendar'
-
+import Landing from './pages/Landing'
+import ConfirmarConsulta from './pages/ConfirmarConsulta'
+import Gerenciar from './pages/Gerenciar'
 
 function PrivateLayout() {
   const { user, loading } = useAuth()
-
-  console.log('PrivateLayout - user:', user, 'loading:', loading)
 
   if (loading) return (
     <div className="min-h-screen bg-[#f5f0eb] flex items-center justify-center">
@@ -33,8 +33,6 @@ function PrivateLayout() {
           <Route path="/agenda" element={<Agenda />} />
           <Route path="/relatorios" element={<Relatorios />} />
           <Route path="/configuracoes" element={<Configuracoes />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/agendar" element={<Agendar />} />
         </Routes>
       </main>
     </div>
@@ -46,8 +44,15 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          {/* ── Rotas públicas ── */}
+          <Route path="/" element={<Landing />} />
+          <Route path="/agendar" element={<Agendar />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/*" element={<PrivateLayout />} />
+          <Route path="/confirmar" element={<ConfirmarConsulta />} />
+          <Route path="/gerenciar" element={<Gerenciar />} />
+
+          {/* ── Rotas privadas (exigem login) ── */}
+          <Route path="/painel/*" element={<PrivateLayout />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

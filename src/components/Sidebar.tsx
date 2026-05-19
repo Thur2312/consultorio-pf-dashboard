@@ -3,10 +3,10 @@ import { LayoutDashboard, Users, Calendar, BarChart2, Settings, LogOut } from 'l
 import { useAuth } from '../contexts/AuthContext'
 
 const links = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/leads', label: 'Leads', icon: Users },
-  { to: '/agenda', label: 'Agenda', icon: Calendar },
-  { to: '/relatorios', label: 'Relatórios', icon: BarChart2 },
+  { to: '/painel', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/painel/leads', label: 'Leads', icon: Users },
+  { to: '/painel/agenda', label: 'Agenda', icon: Calendar },
+  { to: '/painel/relatorios', label: 'Relatórios', icon: BarChart2 },
 ]
 
 export default function Sidebar() {
@@ -49,7 +49,7 @@ export default function Sidebar() {
       {/* Rodapé */}
       <div className="flex flex-col gap-1 mt-4 border-t border-[#F5F1EA] pt-4">
         <NavLink
-          to="/configuracoes"
+          to="/painel/configuracoes"
           className={({ isActive }) =>
             `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
               isActive

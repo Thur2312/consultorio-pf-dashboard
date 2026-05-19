@@ -1,151 +1,429 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+
+// Foto real da recepção — copie para /public/consultorio/recepcao-login.jpeg
+const fotoRecepcao = '/consultorio/recepcao-login.jpeg'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const navigate = useNavigate()
 
-  async function handleLogin(e: React.FormEvent) {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
     setError('')
-    const { error, data } = await supabase.auth.signInWithPassword({ email, password })
-    console.log('data:', data)
-    console.log('error:', error)
+    setLoading(true)
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
-      setError('Email ou senha incorretos')
+      setError('E-mail ou senha incorretos.')
     } else {
-      window.location.href = '/'
+      navigate('/painel/')
     }
     setLoading(false)
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F1EA] flex">
-      {/* Lado esquerdo — ilustração */}
-      <div className="hidden lg:flex w-1/2 bg-[#7A9B8E] flex-col items-center justify-center p-12 relative overflow-hidden">
-        {/* Círculos decorativos */}
-        <div className="absolute top-[-80px] left-[-80px] w-80 h-80 rounded-full bg-[#6a8a7e] opacity-50" />
-        <div className="absolute bottom-[-60px] right-[-60px] w-64 h-64 rounded-full bg-[#8aab9e] opacity-40" />
-        <div className="absolute top-1/2 right-[-40px] w-40 h-40 rounded-full bg-[#6a8a7e] opacity-30" />
+    <div style={{
+      width: '100vw',
+      height: '100vh',
+      overflow: 'hidden',
+      display: 'flex',
+      fontFamily: "'Cormorant Garamond', Georgia, serif",
+      position: 'relative',
+    }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Outfit:wght@300;400;500&display=swap');
 
-        {/* Ilustração SVG */}
-        <svg viewBox="0 0 400 400" className="w-80 h-80 relative z-10" fill="none">
-          <circle cx="200" cy="120" r="55" fill="#E8C4B8" />
-          <ellipse cx="200" cy="290" rx="90" ry="110" fill="#fff" opacity="0.15" />
-          <rect x="130" y="170" width="140" height="160" rx="30" fill="#fff" opacity="0.15" />
-          <rect x="140" y="175" width="120" height="150" rx="20" fill="white" opacity="0.9" />
-          <rect x="185" y="175" width="30" height="150" fill="#E8C4B8" opacity="0.5" />
-          <circle cx="200" cy="240" r="12" fill="none" stroke="#7A9B8E" strokeWidth="4" />
-          <path d="M200 252 Q200 280 220 290 Q240 300 240 320" stroke="#7A9B8E" strokeWidth="4" fill="none" strokeLinecap="round" />
-          <circle cx="240" cy="324" r="8" fill="#7A9B8E" />
-          <ellipse cx="200" cy="90" rx="55" ry="40" fill="#2C3E3A" />
-          <ellipse cx="200" cy="105" rx="55" ry="30" fill="#E8C4B8" />
-          <circle cx="185" cy="115" r="5" fill="#2C3E3A" />
-          <circle cx="215" cy="115" r="5" fill="#2C3E3A" />
-          <path d="M188 135 Q200 145 212 135" stroke="#C9A66B" strokeWidth="3" fill="none" strokeLinecap="round" />
-          <rect x="170" y="195" width="20" height="8" rx="2" fill="#7A9B8E" opacity="0.7" />
-          <rect x="176" y="189" width="8" height="20" rx="2" fill="#7A9B8E" opacity="0.7" />
-        </svg>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        <div className="relative z-10 text-center mt-6">
-          <h2 className="text-white text-3xl font-bold" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
-            Dra. Juliana Heidenreich
+        @keyframes fadeSlideUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulseGlow {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(122,155,142,0.3); }
+          50%       { box-shadow: 0 0 0 8px rgba(122,155,142,0); }
+        }
+        @keyframes floatIn {
+          from { opacity: 0; transform: scale(1.03); }
+          to   { opacity: 1; transform: scale(1); }
+        }
+
+        .login-input {
+          width: 100%;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 10px;
+          padding: 14px 16px;
+          color: #f0ece4;
+          font-family: 'Outfit', sans-serif;
+          font-size: 14px;
+          font-weight: 300;
+          letter-spacing: 0.3px;
+          outline: none;
+          transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+        }
+        .login-input::placeholder { color: rgba(240,236,228,0.28); }
+        .login-input:focus {
+          border-color: #7A9B8E;
+          background: rgba(122,155,142,0.06);
+          box-shadow: 0 0 0 3px rgba(122,155,142,0.12);
+        }
+
+        .login-btn {
+          width: 100%;
+          padding: 15px;
+          background: linear-gradient(135deg, #7A9B8E, #5d8275);
+          border: none;
+          border-radius: 10px;
+          color: #fff;
+          font-family: 'Outfit', sans-serif;
+          font-size: 15px;
+          font-weight: 500;
+          letter-spacing: 0.8px;
+          cursor: pointer;
+          transition: opacity 0.2s, transform 0.2s, box-shadow 0.3s;
+          animation: pulseGlow 3s ease-in-out infinite;
+        }
+        .login-btn:hover:not(:disabled) {
+          opacity: 0.92;
+          transform: translateY(-1px);
+          box-shadow: 0 8px 24px rgba(122,155,142,0.35);
+        }
+        .login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-voltar {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 100px;
+          padding: 8px 16px;
+          font-family: 'Outfit', sans-serif;
+          font-size: 12px;
+          font-weight: 400;
+          color: rgba(240,236,228,0.5);
+          letter-spacing: 0.3px;
+          cursor: pointer;
+          transition: background 0.2s, color 0.2s, border-color 0.2s;
+          text-decoration: none;
+        }
+        .btn-voltar:hover {
+          background: rgba(122,155,142,0.12);
+          border-color: rgba(122,155,142,0.35);
+          color: #b8d8ca;
+        }
+        .btn-voltar svg { transition: transform 0.2s; }
+        .btn-voltar:hover svg { transform: translateX(-3px); }
+
+        .show-pw-btn {
+          position: absolute;
+          right: 14px; top: 50%;
+          transform: translateY(-50%);
+          background: none; border: none;
+          cursor: pointer;
+          color: rgba(240,236,228,0.35);
+          font-size: 17px; padding: 0; line-height: 1;
+          transition: color 0.2s;
+        }
+        .show-pw-btn:hover { color: #7A9B8E; }
+
+        .fade-1 { animation: fadeSlideUp 0.6s ease both; }
+        .fade-2 { animation: fadeSlideUp 0.6s ease 0.1s both; }
+        .fade-3 { animation: fadeSlideUp 0.6s ease 0.2s both; }
+        .fade-4 { animation: fadeSlideUp 0.6s ease 0.3s both; }
+        .fade-5 { animation: fadeSlideUp 0.6s ease 0.4s both; }
+
+        .left-panel { display: none; }
+        @media (min-width: 768px) { .left-panel { display: block !important; } }
+      `}</style>
+
+      {/* ── ESQUERDA — foto real da recepção ── */}
+      <div
+        className="left-panel"
+        style={{ flex: 1, position: 'relative', overflow: 'hidden' }}
+      >
+        {/* Foto */}
+        <img
+          src={fotoRecepcao}
+          alt="Recepção do Consultório Dra. Juliana Heidenreich"
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            // Centraliza no painel de vidro com o nome
+            objectPosition: 'center center',
+            animation: 'floatIn 1.4s cubic-bezier(0.22,1,0.36,1) both',
+          }}
+        />
+
+        {/* Overlay gradiente — mais leve no centro para preservar o painel de vidro */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: `
+            linear-gradient(to right,  rgba(13,22,18,0.05) 0%, transparent 30%),
+            linear-gradient(to bottom, rgba(13,22,18,0.25) 0%, transparent 30%),
+            linear-gradient(to top,    rgba(13,22,18,0.75) 0%, rgba(13,22,18,0.25) 50%, transparent 100%)
+          `,
+        }} />
+
+        {/* Conteúdo sobreposto — parte inferior */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          display: 'flex', flexDirection: 'column',
+          justifyContent: 'flex-end',
+          padding: '44px 48px',
+        }}>
+          {/* Badge */}
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            background: 'rgba(122,155,142,0.18)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            border: '1px solid rgba(122,155,142,0.3)',
+            borderRadius: 40,
+            padding: '6px 16px',
+            width: 'fit-content',
+            marginBottom: 18,
+          }}>
+            <span style={{
+              width: 7, height: 7, borderRadius: '50%',
+              background: '#7A9B8E',
+              display: 'inline-block',
+              boxShadow: '0 0 6px rgba(122,155,142,0.8)',
+            }} />
+            <span style={{
+              fontFamily: 'Outfit', fontSize: 11, fontWeight: 400,
+              color: '#d4ead9', letterSpacing: '1.2px',
+              textTransform: 'uppercase',
+            }}>
+              Sistema ativo
+            </span>
+          </div>
+
+          {/* Título */}
+          <h2 style={{
+            fontFamily: "'Cormorant Garamond', serif",
+            fontSize: 42, fontWeight: 300,
+            color: '#f7f3ee', lineHeight: 1.2,
+            marginBottom: 10,
+            letterSpacing: '-0.3px',
+            textShadow: '0 2px 20px rgba(0,0,0,0.35)',
+          }}>
+            Bem-vinda ao<br />
+            <em style={{ fontWeight: 500, color: '#b8d8ca' }}>seu consultório</em>
           </h2>
-          <p className="text-[#F5F1EA] mt-2 text-base opacity-80" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-            Ginecologia & Obstetrícia
-          </p>
-        </div>
 
-        {/* Badges flutuantes */}
-        <div className="absolute top-16 right-16 bg-white bg-opacity-20 backdrop-blur-sm rounded-xl px-4 py-2 text-white text-sm font-medium animate-bounce">
-          🩺 Ginecologia
-        </div>
-        <div className="absolute bottom-24 left-16 bg-white bg-opacity-20 backdrop-blur-sm rounded-xl px-4 py-2 text-white text-sm font-medium animate-pulse">
-          🤰 Obstetrícia
+          {/* Endereço */}
+          <p style={{
+            fontFamily: 'Outfit', fontWeight: 300,
+            fontSize: 12, color: 'rgba(240,236,228,0.55)',
+            letterSpacing: '0.2px', lineHeight: 1.7,
+          }}>
+            Av. Pereira Teixeira, 86 — Sala 404, Ed. Ouro Verde · Barbacena, MG
+          </p>
+
+          {/* Stats */}
+          <div style={{ display: 'flex', gap: 28, marginTop: 24 }}>
+            {[['IA', 'Agendamento'], ['24h', 'Disponível'], ['100%', 'Seguro']].map(([val, label]) => (
+              <div key={label}>
+                <div style={{
+                  fontFamily: "'Cormorant Garamond', serif",
+                  fontSize: 26, fontWeight: 500,
+                  color: '#7A9B8E',
+                }}>{val}</div>
+                <div style={{
+                  fontFamily: 'Outfit', fontSize: 10,
+                  color: 'rgba(240,236,228,0.4)',
+                  letterSpacing: '1px', marginTop: 2,
+                  textTransform: 'uppercase',
+                }}>{label}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Lado direito — formulário */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div
-          className="bg-white rounded-2xl shadow-sm p-10 w-full max-w-md"
-          style={{ animation: 'fadeSlideIn 0.5s ease forwards' }}
-        >
-          <div className="mb-8">
-            <div className="w-12 h-12 bg-[#7A9B8E] rounded-xl flex items-center justify-center mb-4">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" fill="white"/>
+      {/* ── DIREITA — formulário ── */}
+      <div style={{
+        width: '100%',
+        maxWidth: 460,
+        minWidth: 320,
+        background: '#0d1a15',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: '40px 48px',
+        position: 'relative',
+        zIndex: 1,
+        flexShrink: 0,
+      }}>
+        {/* Decoração radial */}
+        <div style={{
+          position: 'absolute', top: -80, right: -80,
+          width: 280, height: 280, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(122,155,142,0.09) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
+        <div style={{
+          position: 'absolute', bottom: -60, left: -60,
+          width: 200, height: 200, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(122,155,142,0.05) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
+
+        <div style={{ width: '100%', maxWidth: 340 }}>
+
+          {/* Botão voltar */}
+          <div className="fade-1" style={{ marginBottom: 32 }}>
+            <button
+              className="btn-voltar"
+              onClick={() => navigate('/')}
+              type="button"
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 2L4 7L9 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-            </div>
-            <h1 className="text-2xl font-bold text-[#2C3E3A]" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
-              Bem-vinda de volta
-            </h1>
-            <p className="text-[#8B8B8B] mt-1 text-sm">Entre com suas credenciais para acessar</p>
+              Voltar ao site
+            </button>
           </div>
 
-          <form onSubmit={handleLogin} className="flex flex-col gap-4">
-            <div>
-              <label className="text-sm font-medium text-[#2C3E3A] block mb-1.5">Email</label>
+          {/* Logo */}
+          <div className="fade-1" style={{ marginBottom: 40 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: 12,
+                background: 'linear-gradient(135deg, #7A9B8E, #5d8275)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 20, flexShrink: 0,
+              }}>
+                ✦
+              </div>
+              <div>
+                <div style={{
+                  fontFamily: "'Cormorant Garamond', serif",
+                  fontSize: 17, fontWeight: 600,
+                  color: '#f0ece4', letterSpacing: '-0.2px', lineHeight: 1.2,
+                }}>
+                  Dra. Juliana Heidenreich
+                </div>
+                <div style={{
+                  fontFamily: 'Outfit', fontSize: 10, fontWeight: 300,
+                  color: 'rgba(240,236,228,0.38)', letterSpacing: '1px',
+                  textTransform: 'uppercase',
+                }}>
+                  Ginecologia · Obstetrícia
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Título */}
+          <div className="fade-2" style={{ marginBottom: 32 }}>
+            <h1 style={{
+              fontFamily: "'Cormorant Garamond', serif",
+              fontSize: 34, fontWeight: 300,
+              color: '#f0ece4', lineHeight: 1.2,
+              letterSpacing: '-0.5px', marginBottom: 8,
+            }}>
+              Bem-vinda<br />
+              <em style={{ fontWeight: 500 }}>de volta</em>
+            </h1>
+            <p style={{
+              fontFamily: 'Outfit', fontSize: 13, fontWeight: 300,
+              color: 'rgba(240,236,228,0.42)', letterSpacing: '0.2px',
+            }}>
+              Acesse o painel de gestão do consultório
+            </p>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+            <div className="fade-3">
+              <label style={{
+                display: 'block', marginBottom: 6,
+                fontFamily: 'Outfit', fontSize: 11, fontWeight: 400,
+                color: 'rgba(240,236,228,0.45)', letterSpacing: '1px',
+                textTransform: 'uppercase',
+              }}>E-mail</label>
               <input
                 type="email"
+                className="login-input"
+                placeholder="seu@email.com"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#7A9B8E] focus:border-transparent transition-all"
-                placeholder="seu@email.com"
                 required
+                autoComplete="email"
               />
             </div>
 
-            <div>
-              <label className="text-sm font-medium text-[#2C3E3A] block mb-1.5">Senha</label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#7A9B8E] focus:border-transparent transition-all"
-                placeholder="••••••••"
-                required
-              />
+            <div className="fade-4">
+              <label style={{
+                display: 'block', marginBottom: 6,
+                fontFamily: 'Outfit', fontSize: 11, fontWeight: 400,
+                color: 'rgba(240,236,228,0.45)', letterSpacing: '1px',
+                textTransform: 'uppercase',
+              }}>Senha</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  className="login-input"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                  style={{ paddingRight: 44 }}
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  className="show-pw-btn"
+                  onClick={() => setShowPassword(v => !v)}
+                  tabIndex={-1}
+                >
+                  {showPassword ? '🙈' : '👁'}
+                </button>
+              </div>
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-600 text-sm">
-                {error}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                background: 'rgba(220,80,80,0.1)',
+                border: '1px solid rgba(220,80,80,0.25)',
+                borderRadius: 8, padding: '10px 14px',
+              }}>
+                <span style={{ fontSize: 14 }}>⚠️</span>
+                <span style={{ fontFamily: 'Outfit', fontSize: 13, color: '#f08080', fontWeight: 300 }}>{error}</span>
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="bg-[#7A9B8E] text-white rounded-xl py-3 font-medium hover:bg-[#6a8a7e] active:scale-95 transition-all disabled:opacity-50 mt-2"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="white" strokeWidth="4" />
-                    <path className="opacity-75" fill="white" d="M4 12a8 8 0 018-8v8z" />
-                  </svg>
-                  Entrando...
-                </span>
-              ) : 'Entrar'}
-            </button>
+            <div className="fade-5" style={{ marginTop: 6 }}>
+              <button type="submit" className="login-btn" disabled={loading}>
+                {loading ? 'Entrando…' : 'Entrar no painel →'}
+              </button>
+            </div>
+
           </form>
 
-          <p className="text-center text-xs text-[#8B8B8B] mt-6">
-            Não tem acesso? Solicite ao administrador.
+          <p style={{
+            marginTop: 32,
+            fontFamily: 'Outfit', fontSize: 11, fontWeight: 300,
+            color: 'rgba(240,236,228,0.18)', textAlign: 'center',
+            letterSpacing: '0.5px',
+          }}>
+            Acesso restrito · Consultório Dra. Juliana Heidenreich
           </p>
+
         </div>
       </div>
-
-      <style>{`
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </div>
   )
 }

@@ -96,78 +96,81 @@ export default function Agendar() {
     return date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
   }
 
-  async function handleConfirm() {
-    if (!selectedSlot || !nome || !email || !telefone) return
-    setSubmitting(true)
-    setError('')
+ // ─── SUBSTITUA o handleConfirm inteiro no seu Agendar.tsx ───────────────────
+// (o restante do arquivo permanece igual)
 
-    try {
-      // 1. Cria ou atualiza paciente
-      const { data: patient, error: patientError } = await supabase
-        .from('patients')
-        .upsert({
-          phone: telefone,
-          name: nome,
-          service_type: especialidade,
-          doctor_id: DOCTOR_ID,
-        }, { onConflict: 'phone' })
-        .select('id')
-        .single()
+async function handleConfirm() {
+  if (!selectedSlot || !nome || !email || !telefone) return
+  setSubmitting(true)
+  setError('')
 
-      if (patientError) throw new Error('Erro ao salvar dados da paciente.')
+  try {
+    // 1. Cria ou atualiza paciente — agora inclui email
+    const { data: patient, error: patientError } = await supabase
+      .from('patients')
+      .upsert({
+        phone: telefone,
+        name: nome,
+        email: email,           // ← NOVO: salva o email
+        service_type: especialidade,
+        doctor_id: DOCTOR_ID,
+      }, { onConflict: 'phone' })
+      .select('id')
+      .single()
 
-      // 2. Cria o agendamento
-      const appointmentAt = `${selectedSlot.date}T${selectedSlot.time}`
-      const { error: aptError } = await supabase
-        .from('appointments')
-        .insert({
-          patient_id: patient.id,
-          doctor_id: DOCTOR_ID,
-          service_type: especialidade,
-          scheduled_at: appointmentAt,
-          status: 'pendente',
-        })
+    if (patientError) throw new Error('Erro ao salvar dados da paciente.')
 
-      if (aptError) throw new Error('Erro ao criar agendamento.')
-
-      // 3. Cria ou atualiza lead
-      const { error: leadError } = await supabase
-        .from('leads')
-        .upsert({
-          phone: telefone,
-          status: 'agendado',
-          first_message: `Agendamento via site — ${especialidade === 'ginecologia' ? 'Ginecologia' : 'Obstetrícia'} — ${nome}`,
-          doctor_id: DOCTOR_ID,
-          appointment_at: appointmentAt,
-        }, { onConflict: 'phone' })
-
-      if (leadError) throw new Error('Erro ao registrar lead.')
-
-      // 4. Marca slot como indisponível
-      await supabase
-        .from('available_slots')
-        .update({ is_available: false })
-        .eq('id', selectedSlot.id)
-
-      // 5. Dispara emails de confirmação (paciente + Dra. Juliana)
-      // Não bloqueia o fluxo — falha silenciosa logada no console
-      sendConfirmationEmail({
-        patientName: nome,
-        patientEmail: email,
-        patientPhone: telefone,
-        serviceType: especialidade,
-        scheduledAt: appointmentAt,
+    // 2. Cria o agendamento — agora inclui slot_id
+    const appointmentAt = `${selectedSlot.date}T${selectedSlot.time}`
+    const { error: aptError } = await supabase
+      .from('appointments')
+      .insert({
+        patient_id: patient.id,
+        doctor_id: DOCTOR_ID,
+        service_type: especialidade,
+        scheduled_at: appointmentAt,
+        status: 'pendente',
+        slot_id: selectedSlot.id,  // ← NOVO: vincula o slot ao agendamento
       })
 
-      setStep('confirmado')
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erro inesperado. Tente novamente.'
-      setError(message)
-    } finally {
-      setSubmitting(false)
-    }
-  }
+    if (aptError) throw new Error('Erro ao criar agendamento.')
 
+    // 3. Cria ou atualiza lead
+    const { error: leadError } = await supabase
+      .from('leads')
+      .upsert({
+        phone: telefone,
+        status: 'agendado',
+        first_message: `Agendamento via site — ${especialidade === 'ginecologia' ? 'Ginecologia' : 'Obstetrícia'} — ${nome}`,
+        doctor_id: DOCTOR_ID,
+        appointment_at: appointmentAt,
+      }, { onConflict: 'phone' })
+
+    if (leadError) throw new Error('Erro ao registrar lead.')
+
+    // 4. Marca slot como indisponível
+    await supabase
+      .from('available_slots')
+      .update({ is_available: false })
+      .eq('id', selectedSlot.id)
+
+    // 5. Dispara emails de confirmação (falha silenciosa)
+    sendConfirmationEmail({
+      patientName: nome,
+      patientEmail: email,
+      patientPhone: telefone,
+      serviceType: especialidade,
+      scheduledAt: appointmentAt,
+    })
+
+    setStep('confirmado')
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Erro inesperado. Tente novamente.'
+    setError(message)
+  } finally {
+    setSubmitting(false)
+  }
+}
   const inputClass = "w-full border border-[#e8e4de] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#7A9B8E] bg-white text-[#2C3E3A]"
 
   return (
