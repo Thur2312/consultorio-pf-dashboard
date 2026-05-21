@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import {
   ChevronLeft, ChevronRight, Calendar, List, Clock,
-  Plus, Trash2, Settings, X, Phone, Stethoscope, XCircle, CheckCircle,
+  Plus, Trash2, Settings, X, Phone, Stethoscope, XCircle, CheckCircle, CreditCard,
 } from 'lucide-react'
+import unimedLogo from '../../public/consultorio/unimed.jpeg'
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -14,6 +16,7 @@ type Appointment = {
   scheduled_at: string
   service_type: string
   status: string
+  payment_type: string | null
   patient_id: string | null
   patients: Patient | null
 }
@@ -26,12 +29,12 @@ type Slot = {
   is_available: boolean
 }
 
-// Tipos para dados brutos do Supabase
 type AppointmentRow = {
   id: string
   scheduled_at: string
   service_type: string | null
   status: string | null
+  payment_type: string | null
   patient_id: string | null
   patients: Patient | Patient[] | null
 }
@@ -58,8 +61,28 @@ const statusConfig: Record<string, {
   realizado:      { label: 'Realizado',      color: 'text-slate-500', dot: 'bg-slate-400', bg: 'bg-slate-100', border: 'border-slate-300' },
 }
 
-const serviceIcon: Record<string, string>  = { obstetricia: '🤰', ginecologia: '🩺', ambos: '⚕️' }
-const serviceLabel: Record<string, string> = { obstetricia: 'Obstetrícia', ginecologia: 'Ginecologia', ambos: 'Ambos' }
+
+const serviceIcon: Record<string, string> = {
+  obstetricia:              '🤰',
+  ginecologia:              '🩺',
+  ambos:                    '⚕️',
+  ginecologia_regenerativa: '✨',
+  cirurgia_ginecologica:    '🏥',
+  ninfoplastia:             '💫',
+  climaterio:               '🌿',
+  retorno:                  '📋',
+}
+
+const serviceLabel: Record<string, string> = {
+  obstetricia:              'Obstetrícia',
+  ginecologia:              'Ginecologia',
+  ambos:                    'Ambos',
+  ginecologia_regenerativa: 'Ginecologia Regenerativa',
+  cirurgia_ginecologica:    'Cirurgia Ginecológica',
+  ninfoplastia:             'Ninfoplastia',
+  climaterio:               'Climatério & Menopausa',
+  retorno:                  'Retorno / Resultado',
+}
 
 const DAYS   = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
@@ -94,6 +117,25 @@ function formatSlotDate(dateStr: string) {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })
 }
 
+function PaymentBadge({ paymentType }: { paymentType: string | null }) {
+  if (!paymentType) return null
+
+  if (paymentType === 'unimed') {
+    return (
+      <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full font-semibold bg-[#e6f7f0] text-[#00995D] whitespace-nowrap">
+        <img src={unimedLogo} alt="Unimed" width={12} height={12} style={{ borderRadius: 2, objectFit: 'cover' }} />
+        Unimed
+      </span>
+    )
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full font-semibold bg-[#eef4f2] text-[#7A9B8E] whitespace-nowrap">
+      <span className="font-bold text-[10px] leading-none">$</span>
+      Particular
+    </span>
+  )
+}
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Agenda() {
@@ -123,7 +165,6 @@ export default function Agenda() {
   useEffect(() => { loadAppointments() }, [])
   useEffect(() => { if (tab === 'slots') loadSlots() }, [tab])
 
-  // ── Status automático ──────────────────────────────────────────────────────
   useEffect(() => {
     autoRef.current = setInterval(() => {
       const now = new Date()
@@ -151,13 +192,11 @@ export default function Agenda() {
     return () => { if (autoRef.current) clearInterval(autoRef.current) }
   }, [])
 
-  // ── Loaders ────────────────────────────────────────────────────────────────
-
   async function loadAppointments() {
     setLoading(true)
     const { data } = await supabase
       .from('appointments')
-      .select('id, scheduled_at, service_type, status, patient_id, patients(name, phone)')
+      .select('id, scheduled_at, service_type, status, payment_type, patient_id, patients(name, phone)')
       .order('scheduled_at', { ascending: true })
 
     const rows = (data ?? []) as AppointmentRow[]
@@ -167,6 +206,7 @@ export default function Agenda() {
       scheduled_at: row.scheduled_at,
       service_type: row.service_type ?? 'ambos',
       status:       row.status ?? 'pendente',
+      payment_type: row.payment_type ?? null,
       patient_id:   row.patient_id ?? null,
       patients:     Array.isArray(row.patients)
                       ? (row.patients[0] as Patient) ?? null
@@ -187,8 +227,6 @@ export default function Agenda() {
     setSlots((data ?? []) as Slot[])
     setSlotsLoading(false)
   }
-
-  // ── Slots CRUD ─────────────────────────────────────────────────────────────
 
   async function addSlot() {
     if (!slotDate || !slotTime) { setSlotError('Preencha a data e o horário.'); return }
@@ -217,8 +255,6 @@ export default function Agenda() {
     setSlots(prev => prev.filter(s => s.id !== id))
   }
 
-  // ── Status ─────────────────────────────────────────────────────────────────
-
   async function updateStatus(aptId: string, newStatus: string) {
     setUpdatingStatus(aptId)
     const { error } = await supabase.from('appointments').update({ status: newStatus }).eq('id', aptId)
@@ -228,8 +264,6 @@ export default function Agenda() {
     }
     setUpdatingStatus(null)
   }
-
-  // ── Cancelar ───────────────────────────────────────────────────────────────
 
   async function cancelAppointment(apt: Appointment) {
     setCancellingApt(true)
@@ -279,7 +313,7 @@ export default function Agenda() {
       setAppointments(prev => prev.filter(a => a.id !== apt.id))
       setSelectedApt(null)
       setConfirmCancel(false)
-      loadSlots() // sempre recarrega slots independente da aba ativa
+      loadSlots()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao cancelar.'
       setCancelError(message)
@@ -287,8 +321,6 @@ export default function Agenda() {
       setCancellingApt(false)
     }
   }
-
-  // ── Derivados ──────────────────────────────────────────────────────────────
 
   function getAppointmentsForDay(date: Date) {
     return appointments.filter(apt => isSameDay(new Date(apt.scheduled_at), date))
@@ -355,7 +387,6 @@ export default function Agenda() {
   const isCancelled     = selectedApt?.status === 'cancelado'
   const isPendente      = selectedApt?.status === 'pendente'
 
-  // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="max-w-5xl mx-auto flex flex-col" style={{ height: 'calc(100vh - 64px)', overflow: 'hidden' }}>
 
@@ -402,10 +433,8 @@ export default function Agenda() {
       {tab === 'agenda' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0">
 
-          {/* Calendário — ocupa 2 colunas, altura total disponível */}
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm flex flex-col min-h-0 overflow-hidden">
 
-            {/* Nav do calendário */}
             <div className="flex items-center justify-between px-5 pt-4 pb-2 flex-shrink-0">
               <button onClick={() => navigate('prev')}
                 className="w-7 h-7 rounded-lg hover:bg-[#F5F1EA] flex items-center justify-center text-[#8B8B8B]">
@@ -421,14 +450,12 @@ export default function Agenda() {
             {/* ── MENSAL ── */}
             {view === 'mensal' && (
               <div className="flex flex-col flex-1 min-h-0 px-5 pb-4">
-                {/* Labels de dias */}
                 <div className="grid grid-cols-7 mb-1 flex-shrink-0">
                   {DAYS.map(d => (
                     <div key={d} className="text-center text-[10px] font-semibold text-[#8B8B8B] py-1">{d}</div>
                   ))}
                 </div>
 
-                {/* Grade de dias — células maiores */}
                 <div className="grid grid-cols-7 gap-1 flex-shrink-0">
                   {getMonthDays(currentDate).map((date, i) => {
                     if (!date) return <div key={i} />
@@ -458,7 +485,6 @@ export default function Agenda() {
                   })}
                 </div>
 
-                {/* Resumo do mês */}
                 <div className="mt-3 pt-3 border-t border-[#F5F1EA] flex gap-3 flex-shrink-0">
                   {[
                     {
@@ -490,7 +516,6 @@ export default function Agenda() {
                   ))}
                 </div>
 
-                {/* Lista do dia selecionado */}
                 {selectedDayApts.length > 0 && (
                   <div className="mt-3 flex flex-col gap-1.5 flex-1 overflow-y-auto min-h-0">
                     <p className="text-[10px] font-semibold text-[#8B8B8B] uppercase tracking-wide flex-shrink-0">
@@ -505,6 +530,7 @@ export default function Agenda() {
                           <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${st.dot}`} />
                           <span className="text-[10px] text-[#8B8B8B] w-8 flex-shrink-0">{formatTime(apt.scheduled_at)}</span>
                           <span className="flex-1 text-xs font-medium text-[#2C3E3A] truncate">{apt.patients?.name ?? 'Paciente'}</span>
+                          <PaymentBadge paymentType={apt.payment_type} />
                           <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${st.bg} ${st.color}`}>{st.label}</span>
                         </div>
                       )
@@ -563,6 +589,7 @@ export default function Agenda() {
                                 <p className="text-[10px] font-semibold text-[#2C3E3A] truncate">{apt.patients?.name ?? 'Paciente'}</p>
                                 <p className="text-[9px] text-[#8B8B8B]">{formatTime(apt.scheduled_at)} · {serviceLabel[apt.service_type]}</p>
                               </div>
+                              <PaymentBadge paymentType={apt.payment_type} />
                               <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${st.bg} ${st.color}`}>{st.label}</span>
                             </div>
                           )
@@ -612,6 +639,7 @@ export default function Agenda() {
                                     <p className="text-xs font-semibold text-[#2C3E3A] truncate">{apt.patients?.name ?? 'Paciente'}</p>
                                     <p className="text-[9px] text-[#8B8B8B]">{formatTime(apt.scheduled_at)} · {serviceLabel[apt.service_type]}</p>
                                   </div>
+                                  <PaymentBadge paymentType={apt.payment_type} />
                                   <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${st.bg} ${st.color}`}>{st.label}</span>
                                 </div>
                               )
@@ -671,6 +699,7 @@ export default function Agenda() {
                       <div className="flex flex-col items-end gap-1">
                         <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
                         <span className={`text-[8px] font-medium ${st.color}`}>{st.label}</span>
+                        <PaymentBadge paymentType={apt.payment_type} />
                       </div>
                     </div>
                   )
@@ -808,9 +837,14 @@ export default function Agenda() {
                     <h3 className="text-base font-bold text-[#2C3E3A]" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
                       {selectedApt.patients?.name ?? 'Paciente'}
                     </h3>
-                    <p className={`text-xs font-medium mt-0.5 ${statusConfig[selectedApt.status]?.color ?? 'text-[#7A9B8E]'}`}>
-                      {statusConfig[selectedApt.status]?.label}
-                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className={`text-xs font-medium ${statusConfig[selectedApt.status]?.color ?? 'text-[#7A9B8E]'}`}>
+                        {statusConfig[selectedApt.status]?.label}
+                      </p>
+                      {selectedApt.payment_type && (
+                        <PaymentBadge paymentType={selectedApt.payment_type} />
+                      )}
+                    </div>
                   </div>
                 </div>
                 <button onClick={closeModal} className="w-6 h-6 rounded-full bg-white/70 flex items-center justify-center text-[#8B8B8B] hover:bg-white">
@@ -822,10 +856,11 @@ export default function Agenda() {
             <div className="px-7 py-5">
               <div className="flex flex-col mb-4">
                 {[
-                  { icon: <Phone size={12} />,       label: 'Telefone',      value: selectedApt.patients?.phone ?? '—' },
-                  { icon: <Stethoscope size={12} />, label: 'Especialidade', value: `${serviceIcon[selectedApt.service_type]} ${serviceLabel[selectedApt.service_type]}` },
-                  { icon: <Calendar size={12} />,    label: 'Data',          value: formatFullDate(selectedApt.scheduled_at) },
-                  { icon: <Clock size={12} />,       label: 'Horário',       value: formatTime(selectedApt.scheduled_at) },
+                  { icon: <Phone size={12} />,        label: 'Telefone',      value: selectedApt.patients?.phone ?? '—' },
+                  { icon: <Stethoscope size={12} />,  label: 'Especialidade', value: `${serviceIcon[selectedApt.service_type]} ${serviceLabel[selectedApt.service_type]}` },
+                  { icon: <CreditCard size={12} />,label: 'Pagamento',value: selectedApt.payment_type === 'unimed' ? 'Unimed' : selectedApt.payment_type === 'particular' ? '$ Particular' : '—'},                  
+                  { icon: <Calendar size={12} />,     label: 'Data',          value: formatFullDate(selectedApt.scheduled_at) },
+                  { icon: <Clock size={12} />,        label: 'Horário',       value: formatTime(selectedApt.scheduled_at) },
                 ].map(({ icon, label, value }) => (
                   <div key={label} className="flex items-center gap-3 py-2 border-b border-[#F5F1EA] last:border-0">
                     <span className="text-[#8B8B8B] flex-shrink-0">{icon}</span>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { sendConfirmationEmail } from '../lib/sendConfirmationEmail'
 import { ChevronLeft, ChevronRight, Clock, CheckCircle, Home } from 'lucide-react'
+import unimedLogo from '../../public/consultorio/unimed.jpeg'
 
 type Slot = {
   id: string
@@ -25,7 +26,7 @@ const SERVICE_CATEGORIES: ServiceCategory[] = [
   { value: 'ginecologia_regenerativa',label: 'Ginecologia Regenerativa',   description: 'Tratamentos inovadores para qualidade de vida e saúde sexual',       icon: '✨', color: '#6b7fc4' },
   { value: 'cirurgia_ginecologica',   label: 'Cirurgia Ginecológica',      description: 'Miomas, cistos, endometriose e outras patologias',                    icon: '🏥', color: '#e05c4b' },
   { value: 'ninfoplastia',            label: 'Ninfoplastia',               description: 'Procedimento cirúrgico íntimo estético e funcional',                  icon: '💫', color: '#9b7fc4' },
-  { value: 'climatério',             label: 'Climatério & Menopausa',     description: 'Acompanhamento e tratamento hormonal na menopausa',                   icon: '🌿', color: '#7aab6e' },
+  { value: 'climaterio',             label: 'Climatério & Menopausa',     description: 'Acompanhamento e tratamento hormonal na menopausa',                   icon: '🌿', color: '#7aab6e' },
   { value: 'retorno',                 label: 'Retorno / Resultado',        description: 'Consulta de retorno para avaliação de exames ou tratamentos',         icon: '📋', color: '#b08b5e' },
 ]
 
@@ -163,6 +164,7 @@ export default function Agendar() {
   const [email, setEmail]                     = useState('')
   const [telefone, setTelefone]               = useState('')
   const [nascimento, setNascimento]           = useState('')
+  const [paymentType, setPaymentType]         = useState<'particular' | 'unimed'>('particular')
   const [submitting, setSubmitting]           = useState(false)
   const [success, setSuccess]                 = useState(false)
   const [errorMsg, setErrorMsg]               = useState('')
@@ -229,6 +231,7 @@ export default function Agendar() {
         scheduled_at: `${selectedSlot.date}T${selectedSlot.time}`,
         service_type: selectedService,
         status:       'pendente',
+        payment_type: paymentType,
       })
       if (apptErr) throw new Error('Erro ao criar agendamento')
       await supabase.from('available_slots').update({ is_available: false }).eq('id', selectedSlot.id)
@@ -291,6 +294,16 @@ export default function Agendar() {
         .time-slot.selected { border-color:#7A9B8E; background:#2C3E3A; color:#fff; }
 
         .form-input:focus { border-color:#7A9B8E !important; box-shadow:0 0 0 3px rgba(122,155,142,0.1) !important; }
+
+        .payment-option {
+          flex:1; padding:12px 10px; border-radius:12px;
+          border:2px solid #EDE9E2; background:#fff;
+          cursor:pointer; transition:all 0.2s; text-align:center;
+          display:flex; flex-direction:column; align-items:center; gap:5px;
+        }
+        .payment-option:hover { border-color:#7A9B8E; }
+        .payment-option.selected-particular { border-color:#7A9B8E; background:#eef4f2; }
+        .payment-option.selected-unimed { border-color:#3b82f6; background:#eff6ff; }
 
         .btn-next {
           width:100%; padding:14px; background:#2C3E3A; color:#fff;
@@ -486,6 +499,48 @@ export default function Agendar() {
                     <label style={labelStyle}>E-mail *</label>
                     <input className="form-input" style={inputStyle} type="email" placeholder="seu@email.com" value={email} onChange={e => setEmail(e.target.value)} />
                   </div>
+
+                  {/* ── Tipo de pagamento ── */}
+                  <div>
+                    <label style={labelStyle}>Forma de pagamento *</label>
+                    <div style={{ display:'flex', gap:10 }}>
+                      <button
+                        type="button"
+                        className={`payment-option ${paymentType === 'particular' ? 'selected-particular' : ''}`}
+                        onClick={() => setPaymentType('particular')}
+                      >
+                        <span style={{ fontSize:22, fontWeight:700, color:'#7A9B8E' }}>$</span>
+                        <span style={{
+                          fontFamily:'Jost, sans-serif', fontSize:13, fontWeight:600,
+                          color: paymentType === 'particular' ? '#7A9B8E' : '#2C3E3A',
+                        }}>Particular</span>
+                        <span style={{ fontFamily:'Jost, sans-serif', fontSize:10, color:'#8B8B8B', fontWeight:300 }}>
+                          Pagamento direto
+                        </span>
+                        {paymentType === 'particular' && (
+                          <CheckCircle size={14} color="#7A9B8E" style={{ marginTop:2 }} />
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        className={`payment-option ${paymentType === 'unimed' ? 'selected-unimed' : ''}`}
+                        onClick={() => setPaymentType('unimed')}
+                      >
+                        <img src={unimedLogo} alt="Unimed" width={36} height={36} style={{ borderRadius:6, objectFit:'cover' }} />
+                        <span style={{
+                          fontFamily:'Jost, sans-serif', fontSize:13, fontWeight:600,
+                          color: paymentType === 'unimed' ? '#00995D' : '#2C3E3A',
+                        }}>Unimed</span>
+                        <span style={{ fontFamily:'Jost, sans-serif', fontSize:10, color:'#8B8B8B', fontWeight:300 }}>
+                          Convênio Unimed
+                        </span>
+                        {paymentType === 'unimed' && (
+                          <CheckCircle size={14} color="#00995D" style={{ marginTop:2 }} />
+                        )}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div style={{ display:'flex', gap:10 }}>
@@ -519,10 +574,11 @@ export default function Agendar() {
                   }}>
                     <div style={{ fontFamily:'Jost, sans-serif', fontSize:10, color:'#8B8B8B', letterSpacing:1, textTransform:'uppercase', marginBottom:10 }}>Resumo</div>
                     {[
-                      ['Serviço',  selectedServiceObj?.label ?? selectedService],
-                      ['Data',     selectedSlot ? formatDate(selectedSlot.date) : ''],
-                      ['Horário',  selectedSlot?.time.slice(0,5) ?? ''],
-                      ['Paciente', nome],
+                      ['Serviço',    selectedServiceObj?.label ?? selectedService],
+                      ['Data',       selectedSlot ? formatDate(selectedSlot.date) : ''],
+                      ['Horário',    selectedSlot?.time.slice(0,5) ?? ''],
+                      ['Paciente',   nome], 
+                      ['Pagamento', paymentType === 'particular' ? '$ Particular' : 'Unimed'],
                     ].map(([k,v]) => (
                       <div key={k} style={{ display:'flex', justifyContent:'space-between', gap:16, marginBottom:7 }}>
                         <span style={{ fontFamily:'Jost, sans-serif', fontSize:12, color:'#8B8B8B' }}>{k}</span>
@@ -565,6 +621,18 @@ export default function Agendar() {
                         <div>
                           <div style={{ fontFamily:'Jost, sans-serif', fontSize:10, color:'#8B8B8B', letterSpacing:1, textTransform:'uppercase', marginBottom:2 }}>Horário</div>
                           <div style={{ fontFamily:'Jost, sans-serif', fontSize:13, color:'#2C3E3A', fontWeight:500 }}>{selectedSlot.time.slice(0,5)}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontFamily:'Jost, sans-serif', fontSize:10, color:'#8B8B8B', letterSpacing:1, textTransform:'uppercase', marginBottom:2 }}>Pagamento</div>
+                          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                            {paymentType === 'unimed'
+                              ? <img src={unimedLogo} alt="Unimed" width={20} height={20} style={{ borderRadius:3, objectFit:'cover' }} />
+                              : <span style={{ fontWeight:700, color:'#7A9B8E', fontSize:16 }}>$</span>
+                            }
+                            <span style={{ fontFamily:'Jost, sans-serif', fontSize:13, fontWeight:500, color: paymentType === 'unimed' ? '#00995D' : '#7A9B8E' }}>
+                              {paymentType === 'particular' ? 'Particular' : 'Unimed'}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     )}

@@ -6,11 +6,14 @@ import { ChevronLeft, ChevronRight, Clock, CheckCircle, XCircle, CalendarClock, 
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+
+
 type Appointment = {
   id: string
   scheduled_at: string
   service_type: string
   status: string
+  payment_type: string | null 
   slot_id: string | null
   patients: {
     name: string
@@ -31,6 +34,17 @@ type Slot = {
 const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 const DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+
+const SERVICE_LABELS: Record<string, string> = {
+  ginecologia:              '🩺 Ginecologia',
+  obstetricia:              '🤰 Obstetrícia',
+  ginecologia_regenerativa: '✨ Gin. Regenerativa',
+  cirurgia_ginecologica:    '🏥 Cirurgia Ginec.',
+  ninfoplastia:             '💫 Ninfoplastia',
+  climaterio:               '🌿 Climatério & Menopausa',
+  retorno:                  '📋 Retorno / Resultado',
+  ambos:                    '⚕️ Ambos',
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -143,7 +157,7 @@ export default function Gerenciar() {
       // Busca agendamento ativo mais recente
       const { data: appointments, error: aErr } = await supabase
         .from('appointments')
-        .select('id, scheduled_at, service_type, status, slot_id')
+        .select('id, scheduled_at, service_type, status, slot_id, payment_type')
         .eq('patient_id', patient.id)
         .in('status', ['pendente', 'confirmado'])
         .order('scheduled_at', { ascending: true })
@@ -431,7 +445,7 @@ export default function Gerenciar() {
                 <div className="flex justify-between">
                   <span className="text-[#8B8B8B]">Especialidade</span>
                   <span className="font-medium text-[#2C3E3A] capitalize">
-                    {appointment.service_type === 'ginecologia' ? '🩺 Ginecologia' : '🤰 Obstetrícia'}
+                    {SERVICE_LABELS[appointment.service_type] ?? appointment.service_type}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -456,6 +470,15 @@ export default function Gerenciar() {
                     {appointment.status === 'confirmado' ? 'Confirmado' : 'Pendente'}
                   </span>
                 </div>
+
+                {appointment.payment_type && (
+                  <div className="flex justify-between">
+                    <span className="text-[#8B8B8B]">Pagamento</span>
+                    <span className="font-medium text-[#2C3E3A]">
+                      {appointment.payment_type === 'unimed' ? '🌿 Unimed' : '$ Particular'}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
