@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { sendConfirmationEmail } from '../lib/sendConfirmationEmail'
 import { ChevronLeft, ChevronRight, Clock, CheckCircle, Home } from 'lucide-react'
-import unimedLogo from '../../public/consultorio/unimed.jpeg'
+import unimedLogo from '../consultorio/unimed.jpeg'
 
 type Slot = {
   id: string

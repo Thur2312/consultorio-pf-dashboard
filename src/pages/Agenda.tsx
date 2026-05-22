@@ -4,8 +4,6 @@ import {
   ChevronLeft, ChevronRight, Calendar, List, Clock,
   Plus, Trash2, Settings, X, Phone, Stethoscope, XCircle, CheckCircle, CreditCard,
 } from 'lucide-react'
-import unimedLogo from '../../public/consultorio/unimed.jpeg'
-
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -61,37 +59,27 @@ const statusConfig: Record<string, {
   realizado:      { label: 'Realizado',      color: 'text-slate-500', dot: 'bg-slate-400', bg: 'bg-slate-100', border: 'border-slate-300' },
 }
 
-
-const serviceIcon: Record<string, string> = {
-  obstetricia:              '🤰',
-  ginecologia:              '🩺',
-  ambos:                    '⚕️',
-  ginecologia_regenerativa: '✨',
-  cirurgia_ginecologica:    '🏥',
-  ninfoplastia:             '💫',
-  climaterio:               '🌿',
-  retorno:                  '📋',
+const paymentConfig: Record<string, { label: string; color: string; bg: string; icon: string }> = {
+  particular: { label: 'Particular', color: 'text-[#7A9B8E]',  bg: 'bg-[#eef4f2]',  icon: '💳' },
+  unimed:     { label: 'Unimed',     color: 'text-blue-500',   bg: 'bg-blue-50',    icon: '🏥' },
 }
 
-const serviceLabel: Record<string, string> = {
-  obstetricia:              'Obstetrícia',
-  ginecologia:              'Ginecologia',
-  ambos:                    'Ambos',
-  ginecologia_regenerativa: 'Ginecologia Regenerativa',
-  cirurgia_ginecologica:    'Cirurgia Ginecológica',
-  ninfoplastia:             'Ninfoplastia',
-  climaterio:               'Climatério & Menopausa',
-  retorno:                  'Retorno / Resultado',
-}
+const serviceIcon: Record<string, string>  = { obstetricia: '🤰', ginecologia: '🩺', ambos: '⚕️' }
+const serviceLabel: Record<string, string> = { obstetricia: 'Obstetrícia', ginecologia: 'Ginecologia', ambos: 'Ambos' }
 
 const DAYS   = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 
-const HORARIOS_SUGERIDOS = [
-  '07:00','07:30','08:00','08:30','09:00','09:30',
-  '10:00','10:30','11:00','11:30','13:00','13:30',
-  '14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30',
-]
+const HORARIOS_SUGERIDOS = (() => {
+  const slots: string[] = []
+  for (let h = 7; h <= 18; h++) {
+    for (const m of [0, 15, 30, 45]) {
+      if (h === 18 && m > 0) break
+      slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
+    }
+  }
+  return slots
+})()
 const TIMELINE_HOURS = [
   '07:00','08:00','09:00','10:00','11:00','12:00',
   '13:00','14:00','15:00','16:00','17:00','18:00',
@@ -119,23 +107,15 @@ function formatSlotDate(dateStr: string) {
 
 function PaymentBadge({ paymentType }: { paymentType: string | null }) {
   if (!paymentType) return null
-
-  if (paymentType === 'unimed') {
-    return (
-      <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full font-semibold bg-[#e6f7f0] text-[#00995D] whitespace-nowrap">
-        <img src={unimedLogo} alt="Unimed" width={12} height={12} style={{ borderRadius: 2, objectFit: 'cover' }} />
-        Unimed
-      </span>
-    )
-  }
-
+  const cfg = paymentConfig[paymentType]
+  if (!cfg) return null
   return (
-    <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full font-semibold bg-[#eef4f2] text-[#7A9B8E] whitespace-nowrap">
-      <span className="font-bold text-[10px] leading-none">$</span>
-      Particular
+    <span className={`inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full font-semibold ${cfg.bg} ${cfg.color}`}>
+      {cfg.icon} {cfg.label}
     </span>
   )
 }
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Agenda() {
@@ -155,7 +135,9 @@ export default function Agenda() {
   const [slotsLoading, setSlotsLoading]     = useState(false)
   const [slotDate, setSlotDate]             = useState('')
   const [slotTime, setSlotTime]             = useState('')
-  const [slotService, setSlotService]       = useState<'ginecologia' | 'obstetricia' | 'ambos'>('ambos')
+  const [generatingAll, setGeneratingAll]   = useState(false)
+  const [removingAll, setRemovingAll]       = useState(false)
+  const [confirmRemoveAll, setConfirmRemoveAll] = useState(false)
   const [slotFilter, setSlotFilter]         = useState<'todos' | 'disponiveis' | 'ocupados'>('todos')
   const [savingSlot, setSavingSlot]         = useState(false)
   const [slotError, setSlotError]           = useState('')
@@ -232,14 +214,11 @@ export default function Agenda() {
     if (!slotDate || !slotTime) { setSlotError('Preencha a data e o horário.'); return }
     setSlotError('')
     setSavingSlot(true)
-    const exists = slots.some(s =>
-      s.date === slotDate && s.time.slice(0, 5) === slotTime &&
-      (s.service_type === slotService || s.service_type === 'ambos' || slotService === 'ambos')
-    )
+    const exists = slots.some(s => s.date === slotDate && s.time.slice(0, 5) === slotTime)
     if (exists) { setSlotError('Já existe um slot neste horário.'); setSavingSlot(false); return }
     const { error } = await supabase
       .from('available_slots')
-      .insert({ date: slotDate, time: slotTime, service_type: slotService, is_available: true })
+      .insert({ date: slotDate, time: slotTime, service_type: 'ambos', is_available: true })
     if (error) { setSlotError('Erro ao salvar slot.') }
     else {
       setSlotSuccess('Horário adicionado!')
@@ -248,6 +227,45 @@ export default function Agenda() {
       loadSlots()
     }
     setSavingSlot(false)
+  }
+
+  async function generateAllSlots() {
+    if (!slotDate) { setSlotError('Selecione uma data primeiro.'); return }
+    setSlotError('')
+    setGeneratingAll(true)
+    const existing = new Set(slots.filter(s => s.date === slotDate).map(s => s.time.slice(0, 5)))
+    const toInsert = HORARIOS_SUGERIDOS
+      .filter(h => !existing.has(h))
+      .map(h => ({ date: slotDate, time: h, service_type: 'ambos', is_available: true }))
+    if (toInsert.length === 0) {
+      setSlotError('Todos os horários do dia já estão cadastrados.')
+      setGeneratingAll(false)
+      return
+    }
+    const { error } = await supabase.from('available_slots').insert(toInsert)
+    if (error) { setSlotError('Erro ao gerar horários.') }
+    else {
+      setSlotSuccess(`${toInsert.length} horários gerados!`)
+      setTimeout(() => setSlotSuccess(''), 3000)
+      loadSlots()
+    }
+    setGeneratingAll(false)
+  }
+
+  async function removeAllSlotsOfDay() {
+    if (!slotDate) return
+    setRemovingAll(true)
+    const ids = slots
+      .filter(s => s.date === slotDate && s.is_available)
+      .map(s => s.id)
+    if (ids.length > 0) {
+      await supabase.from('available_slots').delete().in('id', ids)
+      setSlots(prev => prev.filter(s => !(s.date === slotDate && s.is_available)))
+    }
+    setSlotSuccess(`${ids.length} horário${ids.length !== 1 ? 's' : ''} removido${ids.length !== 1 ? 's' : ''}.`)
+    setTimeout(() => setSlotSuccess(''), 3000)
+    setConfirmRemoveAll(false)
+    setRemovingAll(false)
   }
 
   async function deleteSlot(id: string) {
@@ -715,14 +733,18 @@ export default function Agenda() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0">
           <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-3 overflow-y-auto">
             <h3 className="font-semibold text-[#2C3E3A] text-sm flex items-center gap-2">
-              <Plus size={13} className="text-[#7A9B8E]" />Adicionar horário
+              <Plus size={13} className="text-[#7A9B8E]" />Gerenciar horários
             </h3>
+
+            {/* Data */}
             <div>
               <label className="text-[10px] font-medium text-[#8B8B8B] block mb-1">Data</label>
               <input type="date" value={slotDate} min={new Date().toISOString().split('T')[0]}
-                onChange={e => setSlotDate(e.target.value)}
+                onChange={e => { setSlotDate(e.target.value); setConfirmRemoveAll(false); setSlotError('') }}
                 className="w-full border border-[#e8e4de] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7A9B8E] bg-white text-[#2C3E3A]" />
             </div>
+
+            {/* Horário */}
             <div>
               <label className="text-[10px] font-medium text-[#8B8B8B] block mb-1">Horário</label>
               <select value={slotTime} onChange={e => setSlotTime(e.target.value)}
@@ -731,30 +753,48 @@ export default function Agenda() {
                 {HORARIOS_SUGERIDOS.map(h => <option key={h} value={h}>{h}</option>)}
               </select>
             </div>
-            <div>
-              <label className="text-[10px] font-medium text-[#8B8B8B] block mb-1">Tipo</label>
-              <div className="flex flex-col gap-1.5">
-                {([
-                  { key: 'ambos',       label: '⚕️ Ambos',      desc: 'Qualquer'      },
-                  { key: 'ginecologia', label: '🩺 Ginecologia', desc: 'Só gineco'     },
-                  { key: 'obstetricia', label: '🤰 Obstetrícia', desc: 'Só obstétrica' },
-                ] as const).map(({ key, label, desc }) => (
-                  <button key={key} onClick={() => setSlotService(key)}
-                    className={`flex items-center justify-between px-3 py-1.5 rounded-xl border-2 text-left transition-all ${
-                      slotService === key ? 'border-[#7A9B8E] bg-[#eef4f2]' : 'border-[#e8e4de] hover:border-[#7A9B8E]'
-                    }`}>
-                    <span className="text-xs font-medium text-[#2C3E3A]">{label}</span>
-                    <span className="text-[10px] text-[#8B8B8B]">{desc}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+
             {slotError   && <p className="text-xs text-red-500">{slotError}</p>}
             {slotSuccess && <p className="text-xs text-[#7A9B8E] font-medium">{slotSuccess}</p>}
-            <button onClick={addSlot} disabled={savingSlot}
+
+            {/* Adicionar um */}
+            <button onClick={addSlot} disabled={savingSlot || !slotDate || !slotTime}
               className="w-full bg-[#7A9B8E] text-white rounded-xl py-2 text-sm font-medium hover:bg-[#6a8a7e] transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5">
               <Plus size={13} />{savingSlot ? 'Salvando...' : 'Adicionar horário'}
             </button>
+
+            <div className="border-t border-[#F5F1EA] pt-3 flex flex-col gap-2">
+              <p className="text-[10px] font-medium text-[#8B8B8B]">Ações para o dia inteiro</p>
+
+              {/* Gerar todos */}
+              <button onClick={generateAllSlots} disabled={generatingAll || !slotDate}
+                className="w-full bg-[#2C3E3A] text-white rounded-xl py-2 text-sm font-medium hover:bg-[#3a5450] transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5">
+                <Calendar size={13} />{generatingAll ? 'Gerando...' : 'Gerar todos os horários do dia'}
+              </button>
+
+              {/* Remover todos */}
+              {!confirmRemoveAll ? (
+                <button onClick={() => setConfirmRemoveAll(true)} disabled={!slotDate}
+                  className="w-full border-2 border-red-200 text-red-400 rounded-xl py-2 text-sm font-medium hover:bg-red-50 transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5">
+                  <Trash2 size={13} /> Remover todos os horários do dia
+                </button>
+              ) : (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                  <p className="text-xs font-semibold text-red-500 mb-1">Confirmar remoção?</p>
+                  <p className="text-[10px] text-red-400 mb-2">Apenas horários disponíveis serão removidos. Horários ocupados são mantidos.</p>
+                  <div className="flex gap-2">
+                    <button onClick={removeAllSlotsOfDay} disabled={removingAll}
+                      className="flex-1 bg-red-400 text-white rounded-xl py-1.5 text-xs font-medium hover:bg-red-500 disabled:opacity-50">
+                      {removingAll ? 'Removendo...' : 'Sim, remover'}
+                    </button>
+                    <button onClick={() => setConfirmRemoveAll(false)} disabled={removingAll}
+                      className="flex-1 bg-[#F5F1EA] text-[#8B8B8B] rounded-xl py-1.5 text-xs font-medium hover:bg-[#eee]">
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm p-5 flex flex-col min-h-0">
@@ -858,7 +898,7 @@ export default function Agenda() {
                 {[
                   { icon: <Phone size={12} />,        label: 'Telefone',      value: selectedApt.patients?.phone ?? '—' },
                   { icon: <Stethoscope size={12} />,  label: 'Especialidade', value: `${serviceIcon[selectedApt.service_type]} ${serviceLabel[selectedApt.service_type]}` },
-                  { icon: <CreditCard size={12} />,label: 'Pagamento',value: selectedApt.payment_type === 'unimed' ? 'Unimed' : selectedApt.payment_type === 'particular' ? '$ Particular' : '—'},                  
+                  { icon: <CreditCard size={12} />,   label: 'Pagamento',     value: selectedApt.payment_type ? `${paymentConfig[selectedApt.payment_type]?.icon} ${paymentConfig[selectedApt.payment_type]?.label}` : '—' },
                   { icon: <Calendar size={12} />,     label: 'Data',          value: formatFullDate(selectedApt.scheduled_at) },
                   { icon: <Clock size={12} />,        label: 'Horário',       value: formatTime(selectedApt.scheduled_at) },
                 ].map(({ icon, label, value }) => (
