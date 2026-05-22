@@ -165,7 +165,7 @@ export default function Landing() {
             <div style={{ flex:1 }}>
               <div style={{ display:'inline-flex', alignItems:'center', gap:8, background:'rgba(122,155,142,0.12)', color:'#5d8275', padding:'8px 20px', borderRadius:100, fontFamily:'Jost,sans-serif', fontSize:11, fontWeight:500, letterSpacing:2, textTransform:'uppercase', marginBottom:24 }}>
                 <span style={{ width:6, height:6, borderRadius:'50%', background:'#7A9B8E', display:'inline-block' }} />
-                Juazeiro do Norte, CE
+                Barbacena, MG
               </div>
               <h1 style={{ fontSize:'clamp(38px,7vw,80px)', fontWeight:300, lineHeight:1.1, marginBottom:12, color:'#2C3E3A' }}>
                 Cuidando de você<br />
@@ -341,7 +341,7 @@ export default function Landing() {
           </div>
           <div className="contato-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))', gap:20, marginBottom:48 }}>
             {[
-              { icon:'📍', titulo:'Endereço',  linhas:['Av. Pereira Teixeira, 86','Sala 404 – Ed. Ouro Verde','Juazeiro do Norte, CE'] },
+              { icon:'📍', titulo:'Endereço',  linhas:['Av. Pereira Teixeira, 86','Sala 404 – Ed. Ouro Verde','Barbacena, MG'] },
               { icon:'📱', titulo:'WhatsApp',  linhas:['(32) 98877-3770'], link:'https://wa.me/5532988773770' },
               { icon:'📷', titulo:'Instagram', linhas:['@juliana.heidenreich'], link:'https://www.instagram.com/juliana.heidenreich/' },
             ].map(({ icon, titulo, linhas, link }) => (
