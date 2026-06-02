@@ -13,12 +13,6 @@ type Profile = {
 
 type Tab = 'usuarios' | 'perfil' | 'consultorio'
 
-const roleConfig: Record<string, { label: string; color: string }> = {
-  admin: { label: 'Admin', color: 'bg-[#fdf6f0] text-[#C9A66B]' },
-  recepcionista: { label: 'Recepcionista', color: 'bg-[#f0f4ff] text-blue-600' },
-  medico: { label: 'Médico', color: 'bg-[#eef4f2] text-[#7A9B8E]' },
-}
-
 export default function Configuracoes() {
   const { profile: currentProfile } = useAuth()
   const [tab, setTab] = useState<Tab>('usuarios')
@@ -29,7 +23,6 @@ export default function Configuracoes() {
   const [newName, setNewName] = useState('')
   const [newEmail, setNewEmail] = useState('')
   const [newPassword, setNewPassword] = useState('')
-  const [newRole, setNewRole] = useState<'medico' | 'recepcionista' | 'admin'>('medico')
   const [newEspecialidade, setNewEspecialidade] = useState('')
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
@@ -65,10 +58,14 @@ export default function Configuracoes() {
     setCreateError('')
     setCreateSuccess('')
 
-    const { data, error } = await supabase.auth.admin.createUser({
+    // Salva sessão atual do admin
+    const { data: sessionData } = await supabase.auth.getSession()
+    const adminSession = sessionData?.session
+
+    // Cria o novo usuário
+    const { data, error } = await supabase.auth.signUp({
       email: newEmail,
       password: newPassword,
-      email_confirm: true,
     })
 
     if (error || !data.user) {
@@ -77,28 +74,39 @@ export default function Configuracoes() {
       return
     }
 
+    // Insere o perfil do novo usuário
     const { error: profileError } = await supabase.from('profiles').insert({
       id: data.user.id,
       name: newName,
-      role: newRole,
+      role: 'medico',
       especialidade: newEspecialidade || null,
     })
 
     if (profileError) {
-      setCreateError('Usuário criado mas erro ao salvar perfil')
+      setCreateError('Usuário criado mas erro ao salvar perfil: ' + profileError.message)
       setCreating(false)
       return
+    }
+
+    // Restaura sessão do admin
+    if (adminSession) {
+      await supabase.auth.setSession({
+        access_token: adminSession.access_token,
+        refresh_token: adminSession.refresh_token,
+      })
     }
 
     setCreateSuccess('Usuário criado com sucesso!')
     setNewName('')
     setNewEmail('')
     setNewPassword('')
-    setNewRole('medico')
     setNewEspecialidade('')
     setShowNewUser(false)
 
-    const { data: updated } = await supabase.from('profiles').select('*').order('created_at', { ascending: true })
+    const { data: updated } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: true })
     setUsers(updated || [])
     setCreating(false)
   }
@@ -187,19 +195,9 @@ export default function Configuracoes() {
                   <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="••••••••" className={inputClass} />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-[#8B8B8B] block mb-1.5">Função *</label>
-                  <select value={newRole} onChange={e => setNewRole(e.target.value as typeof newRole)} className={inputClass}>
-                    <option value="medico">Médico</option>
-                    <option value="recepcionista">Recepcionista</option>
-                    <option value="admin">Admin</option>
-                  </select>
+                  <label className="text-xs font-medium text-[#8B8B8B] block mb-1.5">Especialidade</label>
+                  <input value={newEspecialidade} onChange={e => setNewEspecialidade(e.target.value)} placeholder="Ex: Ginecologia e Obstetrícia" className={inputClass} />
                 </div>
-                {newRole === 'medico' && (
-                  <div className="md:col-span-2">
-                    <label className="text-xs font-medium text-[#8B8B8B] block mb-1.5">Especialidade</label>
-                    <input value={newEspecialidade} onChange={e => setNewEspecialidade(e.target.value)} placeholder="Ex: Ginecologia e Obstetrícia" className={inputClass} />
-                  </div>
-                )}
               </div>
 
               {createError && (
@@ -230,14 +228,12 @@ export default function Configuracoes() {
                 <thead className="bg-[#F5F1EA] border-b border-[#F5F1EA]">
                   <tr>
                     <th className="text-left px-6 py-3 text-xs font-medium text-[#8B8B8B]">Usuário</th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-[#8B8B8B]">Função</th>
                     <th className="text-left px-6 py-3 text-xs font-medium text-[#8B8B8B]">Especialidade</th>
                     <th className="text-left px-6 py-3 text-xs font-medium text-[#8B8B8B]"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#F5F1EA]">
                   {users.map(user => {
-                    const role = roleConfig[user.role] || roleConfig['medico']
                     const isMe = user.id === currentProfile?.id
                     return (
                       <tr key={user.id} className="hover:bg-[#F5F1EA] transition-colors">
@@ -251,9 +247,6 @@ export default function Configuracoes() {
                               {isMe && <span className="ml-2 text-xs text-[#8B8B8B]">(você)</span>}
                             </p>
                           </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${role.color}`}>{role.label}</span>
                         </td>
                         <td className="px-6 py-4">
                           <span className="text-sm text-[#8B8B8B]">{user.especialidade || '—'}</span>
@@ -287,7 +280,6 @@ export default function Configuracoes() {
             </div>
             <div>
               <p className="font-medium text-[#2C3E3A]">{currentProfile?.name}</p>
-              <p className="text-sm text-[#8B8B8B] capitalize">{currentProfile?.role}</p>
             </div>
           </div>
 
@@ -295,10 +287,6 @@ export default function Configuracoes() {
             <div>
               <label className="text-xs font-medium text-[#8B8B8B] block mb-1.5">Nome completo</label>
               <input value={profileName} onChange={e => setProfileName(e.target.value)} className={inputClass} />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-[#8B8B8B] block mb-1.5">Função</label>
-              <input value={currentProfile?.role || ''} disabled className="w-full border border-[#F5F1EA] rounded-xl px-4 py-2.5 text-sm bg-[#F5F1EA] text-[#8B8B8B] capitalize" />
             </div>
             {currentProfile?.especialidade && (
               <div>
@@ -338,7 +326,6 @@ export default function Configuracoes() {
               </div>
             ))}
           </div>
-          <p className="text-xs text-[#8B8B8B] mt-4">Em breve — salvamento dos dados do consultório</p>
         </div>
       )}
     </div>
