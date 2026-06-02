@@ -497,7 +497,7 @@ export default function Dashboard() {
           <p className="text-sm text-[#8B8B8B] capitalize">{diaSemana}, {dataFormatada}</p>
           <div className="mt-1 flex items-center justify-between">
             <h2 className="text-2xl font-bold text-[#2C3E3A]" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
-              Olá, {primeiroNome} 👋
+              Olá {primeiroNome} 
             </h2>
             <div className="flex items-center gap-3">
               {/* Botão Ausência */}
