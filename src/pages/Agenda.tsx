@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import {
   ChevronLeft, ChevronRight, Calendar, List, Clock,
-  Plus, Trash2, Settings, X, Phone, Stethoscope, XCircle, CheckCircle, CreditCard,
+  Plus, Trash2, Settings, X, Phone, Stethoscope, XCircle, CheckCircle, CreditCard, CalendarDays, UserPlus,
 } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -80,6 +80,7 @@ const HORARIOS_SUGERIDOS = (() => {
   }
   return slots
 })()
+
 const TIMELINE_HOURS = [
   '07:00','08:00','09:00','10:00','11:00','12:00',
   '13:00','14:00','15:00','16:00','17:00','18:00',
@@ -104,6 +105,18 @@ function isSameDay(a: Date, b: Date) {
 function formatSlotDate(dateStr: string) {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })
 }
+function getWeekRange(date: Date): { start: Date; end: Date } {
+  const start = new Date(date)
+  const day = start.getDay()
+  // move to Monday
+  start.setDate(start.getDate() - (day === 0 ? 6 : day - 1))
+  const end = new Date(start)
+  end.setDate(start.getDate() + 4) // Friday
+  return { start, end }
+}
+function toDateString(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
 
 function PaymentBadge({ paymentType }: { paymentType: string | null }) {
   if (!paymentType) return null
@@ -113,6 +126,206 @@ function PaymentBadge({ paymentType }: { paymentType: string | null }) {
     <span className={`inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full font-semibold ${cfg.bg} ${cfg.color}`}>
       {cfg.icon} {cfg.label}
     </span>
+  )
+}
+
+// ─── Modal de agendamento via slot ────────────────────────────────────────────
+
+type SlotBookingModalProps = {
+  slot: Slot
+  onClose: () => void
+  onSuccess: () => void
+}
+
+function SlotBookingModal({ slot, onClose, onSuccess }: SlotBookingModalProps) {
+  const [name, setName]               = useState('')
+  const [phone, setPhone]             = useState('')
+  const [serviceType, setServiceType] = useState('ambos')
+  const [paymentType, setPaymentType] = useState('particular')
+  const [saving, setSaving]           = useState(false)
+  const [error, setError]             = useState('')
+
+  const slotDateTime = `${slot.date}T${slot.time}`
+  const displayDate  = new Date(slot.date + 'T00:00:00').toLocaleDateString('pt-BR', {
+    weekday: 'long', day: '2-digit', month: 'long',
+  })
+
+  async function handleSave() {
+    if (!name.trim())  { setError('Informe o nome do paciente.'); return }
+    if (!phone.trim()) { setError('Informe o telefone do paciente.'); return }
+    setSaving(true)
+    setError('')
+
+    try {
+      // 1. Verificar se paciente já existe pelo telefone
+      const { data: existingPatient } = await supabase
+        .from('patients')
+        .select('id, name, phone')
+        .eq('phone', phone.trim())
+        .maybeSingle()
+
+      let patientId: string
+
+      if (existingPatient) {
+        patientId = existingPatient.id
+      } else {
+        // 2. Criar novo paciente
+        const { data: newPatient, error: patientError } = await supabase
+          .from('patients')
+          .insert({ name: name.trim(), phone: phone.trim(), service_type: serviceType })
+          .select('id')
+          .single()
+        if (patientError || !newPatient) throw new Error('Erro ao cadastrar paciente.')
+        patientId = newPatient.id
+      }
+
+      // 3. Criar agendamento
+      const { error: aptError } = await supabase
+        .from('appointments')
+        .insert({
+          patient_id:   patientId,
+          scheduled_at: slotDateTime,
+          service_type: serviceType,
+          payment_type: paymentType,
+          slot_id:      slot.id,
+          status:       'confirmado',
+        })
+      if (aptError) throw new Error('Erro ao criar agendamento.')
+
+      // 4. Marcar slot como ocupado
+      await supabase
+        .from('available_slots')
+        .update({ is_available: false })
+        .eq('id', slot.id)
+
+      onSuccess()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao salvar.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="px-6 pt-5 pb-4 bg-[#eef4f2]">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center">
+                <UserPlus size={16} className="text-[#7A9B8E]" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-[#2C3E3A]" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
+                  Novo Agendamento
+                </h3>
+                <p className="text-[10px] text-[#7A9B8E] font-medium mt-0.5">
+                  {slot.time.slice(0, 5)} · {displayDate}
+                </p>
+              </div>
+            </div>
+            <button onClick={onClose} className="w-6 h-6 rounded-full bg-white/70 flex items-center justify-center text-[#8B8B8B] hover:bg-white">
+              <X size={12} />
+            </button>
+          </div>
+        </div>
+
+        {/* Form */}
+        <div className="px-6 py-5 flex flex-col gap-3">
+
+          {/* Nome */}
+          <div>
+            <label className="text-[10px] font-semibold text-[#8B8B8B] uppercase tracking-wide block mb-1">
+              Nome do Paciente *
+            </label>
+            <input
+              type="text"
+              placeholder="Nome completo"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              className="w-full border border-[#e8e4de] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7A9B8E] bg-white text-[#2C3E3A] placeholder:text-[#c0b8ae]"
+            />
+          </div>
+
+          {/* Telefone */}
+          <div>
+            <label className="text-[10px] font-semibold text-[#8B8B8B] uppercase tracking-wide block mb-1">
+              Telefone *
+            </label>
+            <input
+              type="tel"
+              placeholder="(00) 00000-0000"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              className="w-full border border-[#e8e4de] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7A9B8E] bg-white text-[#2C3E3A] placeholder:text-[#c0b8ae]"
+            />
+          </div>
+
+          {/* Serviço */}
+          <div>
+            <label className="text-[10px] font-semibold text-[#8B8B8B] uppercase tracking-wide block mb-1">
+              Especialidade
+            </label>
+            <div className="flex gap-2">
+              {(['ambos', 'obstetricia', 'ginecologia'] as const).map(s => (
+                <button
+                  key={s}
+                  onClick={() => setServiceType(s)}
+                  className={`flex-1 py-2 rounded-xl text-xs font-medium border-2 transition-all ${
+                    serviceType === s
+                      ? 'border-[#7A9B8E] bg-[#eef4f2] text-[#7A9B8E]'
+                      : 'border-[#e8e4de] text-[#8B8B8B] hover:border-[#7A9B8E]'
+                  }`}>
+                  {serviceIcon[s]} {serviceLabel[s]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Pagamento */}
+          <div>
+            <label className="text-[10px] font-semibold text-[#8B8B8B] uppercase tracking-wide block mb-1">
+              Forma de Pagamento
+            </label>
+            <div className="flex gap-2">
+              {(['particular', 'unimed'] as const).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setPaymentType(p)}
+                  className={`flex-1 py-2 rounded-xl text-xs font-medium border-2 transition-all ${
+                    paymentType === p
+                      ? 'border-[#7A9B8E] bg-[#eef4f2] text-[#7A9B8E]'
+                      : 'border-[#e8e4de] text-[#8B8B8B] hover:border-[#7A9B8E]'
+                  }`}>
+                  {paymentConfig[p].icon} {paymentConfig[p].label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {error && (
+            <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</p>
+          )}
+
+          <div className="flex gap-2 mt-1">
+            <button
+              onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl border-2 border-[#e8e4de] text-[#8B8B8B] text-sm font-medium hover:bg-[#F5F1EA] transition-all">
+              Cancelar
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex-1 py-2.5 rounded-xl bg-[#7A9B8E] text-white text-sm font-medium hover:bg-[#6a8a7e] transition-all disabled:opacity-50 flex items-center justify-center gap-1.5">
+              <CheckCircle size={13} />
+              {saving ? 'Salvando...' : 'Confirmar'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -136,12 +349,14 @@ export default function Agenda() {
   const [slotDate, setSlotDate]             = useState('')
   const [slotTime, setSlotTime]             = useState('')
   const [generatingAll, setGeneratingAll]   = useState(false)
+  const [generatingWeek, setGeneratingWeek] = useState(false)
   const [removingAll, setRemovingAll]       = useState(false)
   const [confirmRemoveAll, setConfirmRemoveAll] = useState(false)
   const [slotFilter, setSlotFilter]         = useState<'todos' | 'disponiveis' | 'ocupados'>('todos')
   const [savingSlot, setSavingSlot]         = useState(false)
   const [slotError, setSlotError]           = useState('')
   const [slotSuccess, setSlotSuccess]       = useState('')
+  const [bookingSlot, setBookingSlot]       = useState<Slot | null>(null)
   const autoRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => { loadAppointments() }, [])
@@ -250,6 +465,56 @@ export default function Agenda() {
       loadSlots()
     }
     setGeneratingAll(false)
+  }
+
+  // ── NOVO: Gerar horários da semana inteira (Seg–Sex) ──────────────────────
+  async function generateWeekSlots() {
+    if (!slotDate) { setSlotError('Selecione uma data de referência primeiro.'); return }
+    setSlotError('')
+    setGeneratingWeek(true)
+
+    const { start, end } = getWeekRange(new Date(slotDate + 'T00:00:00'))
+    const weekDays: string[] = []
+    const cursor = new Date(start)
+    while (cursor <= end) {
+      weekDays.push(toDateString(cursor))
+      cursor.setDate(cursor.getDate() + 1)
+    }
+
+    const existingSet = new Set(slots.map(s => `${s.date}_${s.time.slice(0, 5)}`))
+    const toInsert: { date: string; time: string; service_type: string; is_available: boolean }[] = []
+
+    for (const day of weekDays) {
+      for (const h of HORARIOS_SUGERIDOS) {
+        if (!existingSet.has(`${day}_${h}`)) {
+          toInsert.push({ date: day, time: h, service_type: 'ambos', is_available: true })
+        }
+      }
+    }
+
+    if (toInsert.length === 0) {
+      setSlotError('Todos os horários da semana já estão cadastrados.')
+      setGeneratingWeek(false)
+      return
+    }
+
+    // inserir em lotes de 100 para não estourar limite
+    const BATCH = 100
+    let insertError = false
+    for (let i = 0; i < toInsert.length; i += BATCH) {
+      const { error } = await supabase.from('available_slots').insert(toInsert.slice(i, i + BATCH))
+      if (error) { insertError = true; break }
+    }
+
+    if (insertError) {
+      setSlotError('Erro ao gerar horários da semana.')
+    } else {
+      const weekLabel = `${start.getDate()}/${String(start.getMonth() + 1).padStart(2, '0')} – ${end.getDate()}/${String(end.getMonth() + 1).padStart(2, '0')}`
+      setSlotSuccess(`${toInsert.length} horários gerados (Seg–Sex · ${weekLabel})!`)
+      setTimeout(() => setSlotSuccess(''), 4000)
+      loadSlots()
+    }
+    setGeneratingWeek(false)
   }
 
   async function removeAllSlotsOfDay() {
@@ -404,6 +669,13 @@ export default function Agenda() {
   const today           = new Date()
   const isCancelled     = selectedApt?.status === 'cancelado'
   const isPendente      = selectedApt?.status === 'pendente'
+
+  // Label da semana para o botão
+  const weekLabel = (() => {
+    if (!slotDate) return 'Abrir semana'
+    const { start, end } = getWeekRange(new Date(slotDate + 'T00:00:00'))
+    return `Abrir semana (${start.getDate()}/${String(start.getMonth() + 1).padStart(2, '0')} – ${end.getDate()}/${String(end.getMonth() + 1).padStart(2, '0')})`
+  })()
 
   return (
     <div className="max-w-5xl mx-auto flex flex-col" style={{ height: 'calc(100vh - 64px)', overflow: 'hidden' }}>
@@ -738,7 +1010,7 @@ export default function Agenda() {
 
             {/* Data */}
             <div>
-              <label className="text-[10px] font-medium text-[#8B8B8B] block mb-1">Data</label>
+              <label className="text-[10px] font-medium text-[#8B8B8B] block mb-1">Data de referência</label>
               <input type="date" value={slotDate} min={new Date().toISOString().split('T')[0]}
                 onChange={e => { setSlotDate(e.target.value); setConfirmRemoveAll(false); setSlotError('') }}
                 className="w-full border border-[#e8e4de] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7A9B8E] bg-white text-[#2C3E3A]" />
@@ -764,9 +1036,18 @@ export default function Agenda() {
             </button>
 
             <div className="border-t border-[#F5F1EA] pt-3 flex flex-col gap-2">
-              <p className="text-[10px] font-medium text-[#8B8B8B]">Ações para o dia inteiro</p>
+              <p className="text-[10px] font-medium text-[#8B8B8B]">Ações em lote</p>
 
-              {/* Gerar todos */}
+              {/* ── NOVO: Abrir semana ── */}
+              <button
+                onClick={generateWeekSlots}
+                disabled={generatingWeek || !slotDate}
+                className="w-full bg-[#4A7A6E] text-white rounded-xl py-2 text-sm font-medium hover:bg-[#3d6b60] transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5">
+                <CalendarDays size={13} />
+                {generatingWeek ? 'Gerando...' : weekLabel}
+              </button>
+
+              {/* Gerar todos (dia) */}
               <button onClick={generateAllSlots} disabled={generatingAll || !slotDate}
                 className="w-full bg-[#2C3E3A] text-white rounded-xl py-2 text-sm font-medium hover:bg-[#3a5450] transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5">
                 <Calendar size={13} />{generatingAll ? 'Gerando...' : 'Gerar todos os horários do dia'}
@@ -797,6 +1078,7 @@ export default function Agenda() {
             </div>
           </div>
 
+          {/* Lista de slots */}
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm p-5 flex flex-col min-h-0">
             <div className="flex items-center justify-between mb-3 flex-shrink-0">
               <h3 className="font-semibold text-[#2C3E3A] text-sm">
@@ -833,11 +1115,13 @@ export default function Agenda() {
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {daySlots.map(slot => (
-                        <div key={slot.id}
-                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-medium ${
+                        <div
+                          key={slot.id}
+                          onClick={() => slot.is_available && setBookingSlot(slot)}
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-medium transition-all ${
                             slot.is_available
-                              ? 'border-[#eef4f2] bg-[#eef4f2] text-[#7A9B8E]'
-                              : 'border-red-100 bg-red-50 text-red-400'
+                              ? 'border-[#eef4f2] bg-[#eef4f2] text-[#7A9B8E] cursor-pointer hover:border-[#7A9B8E] hover:bg-[#dff0e8] hover:shadow-sm'
+                              : 'border-red-100 bg-red-50 text-red-400 cursor-default'
                           }`}>
                           <Clock size={10} />
                           <span>{slot.time.slice(0, 5)}</span>
@@ -845,10 +1129,20 @@ export default function Agenda() {
                             {slot.service_type === 'ambos' ? '⚕️' : serviceIcon[slot.service_type]}
                           </span>
                           {slot.is_available
-                            ? <button onClick={() => deleteSlot(slot.id)}
-                                className="ml-0.5 hover:text-red-500 transition-colors" title="Remover">
-                                <Trash2 size={10} />
-                              </button>
+                            ? (
+                              <>
+                                {/* ícone de + para indicar que é clicável */}
+                                <span className="text-[#7A9B8E] opacity-60" title="Clique para agendar">
+                                  <UserPlus size={9} />
+                                </span>
+                                <button
+                                  onClick={e => { e.stopPropagation(); deleteSlot(slot.id) }}
+                                  className="ml-0.5 hover:text-red-500 transition-colors"
+                                  title="Remover">
+                                  <Trash2 size={10} />
+                                </button>
+                              </>
+                            )
                             : <span className="text-[9px] bg-red-100 px-1 rounded">ocupado</span>
                           }
                         </div>
@@ -862,7 +1156,7 @@ export default function Agenda() {
         </div>
       )}
 
-      {/* ═══ MODAL ═══ */}
+      {/* ═══ MODAL AGENDAMENTO ═══ */}
       {selectedApt && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={closeModal}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -990,6 +1284,19 @@ export default function Agenda() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ═══ MODAL NOVO AGENDAMENTO VIA SLOT ═══ */}
+      {bookingSlot && (
+        <SlotBookingModal
+          slot={bookingSlot}
+          onClose={() => setBookingSlot(null)}
+          onSuccess={() => {
+            setBookingSlot(null)
+            loadSlots()
+            loadAppointments()
+          }}
+        />
       )}
     </div>
   )

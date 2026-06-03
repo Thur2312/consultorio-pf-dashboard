@@ -1,10 +1,10 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Calendar, BarChart2, Settings, LogOut } from 'lucide-react'
+import { LayoutDashboard, Users, Calendar, BarChart2, LogOut } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 const links = [
-  { to: '/painel', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/painel/leads', label: 'Leads', icon: Users },
+  { to: '/painel', label: 'Painel', icon: LayoutDashboard },
+  { to: '/painel/leads', label: 'Clientes', icon: Users },
   { to: '/painel/agenda', label: 'Agenda', icon: Calendar },
   { to: '/painel/relatorios', label: 'Relatórios', icon: BarChart2 },
 ]
@@ -48,19 +48,7 @@ export default function Sidebar() {
 
       {/* Rodapé */}
       <div className="flex flex-col gap-1 mt-4 border-t border-[#F5F1EA] pt-4">
-        <NavLink
-          to="/painel/configuracoes"
-          className={({ isActive }) =>
-            `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-              isActive
-                ? 'bg-[#7A9B8E] text-white'
-                : 'text-[#8B8B8B] hover:bg-[#F5F1EA] hover:text-[#2C3E3A]'
-            }`
-          }
-        >
-          <Settings size={18} />
-          Configurações
-        </NavLink>
+       
 
         <button
           onClick={signOut}
