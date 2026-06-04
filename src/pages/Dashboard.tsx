@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import {
   TrendingUp, TrendingDown, Clock, AlertCircle, CalendarCheck,
-  Target, Bell, CheckCircle, XCircle, BarChart2, PieChart, AlertTriangle,
+  Target, Bell, CheckCircle, XCircle, BarChart2, PieChart, AlertTriangle, CreditCard,
 } from 'lucide-react'
 import {
   Chart as ChartJS, CategoryScale, LinearScale,
@@ -25,11 +25,12 @@ type Appointment = {
   service_type: string
   status: AppointmentStatus
   slot_id: string | null
+  payment_type: string | null
 }
 
 type KpiData = {
   consultasHoje: number; consultasOntem: number
-  proximaDisponivel: string | null
+  proximoNome: string | null; proximoHorario: string | null; proximoPagamento: string | null
   slotsOcupados: number; totalSlots: number
   pendentesConfirmacao: number; pendentesVencemHoje: number
   cancelamentos: number; cancelamentosOntem: number
@@ -45,12 +46,24 @@ type Notif     = { id: string; icon: NotifIcon; text: string; time: string; bg: 
 // ─── Supabase row types ───────────────────────────────────────────────────────
 
 type PatientRow            = { name: string; email: string | null }
-type AppointmentRow        = { id: string; scheduled_at: string; service_type: string | null; status: AppointmentStatus; slot_id: string | null; patients: PatientRow | PatientRow[] | null }
+type AppointmentRow        = { id: string; scheduled_at: string; service_type: string | null; status: AppointmentStatus; slot_id: string | null; payment_type: string | null; patients: PatientRow | PatientRow[] | null }
 type AppointmentIdRow      = { id: string }
 type AppointmentPendingRow = { id: string; scheduled_at: string }
 type AppointmentMesRow     = { scheduled_at: string; service_type: string | null }
 type AppointmentRecentRow  = { id: string; status: AppointmentStatus; scheduled_at: string; created_at: string; patients: PatientRow | PatientRow[] | null }
 type SlotRow               = { id: string; is_available: boolean }
+
+// ─── Priority order ───────────────────────────────────────────────────────────
+
+const PAYMENT_PRIORITY: Record<string, number> = {
+  particular: 0,
+  unimed:     1,
+}
+
+function getPaymentPriority(payment: string | null): number {
+  if (!payment) return 99
+  return PAYMENT_PRIORITY[payment] ?? 99
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -82,6 +95,15 @@ function resolvePatient(patients: PatientRow | PatientRow[] | null): PatientRow 
   return Array.isArray(patients) ? patients[0] ?? null : patients
 }
 
+const paymentLabel: Record<string, string> = {
+  particular: 'Particular',
+  unimed:     'Unimed',
+}
+const paymentColors: Record<string, { bg: string; text: string; dot: string }> = {
+  particular: { bg: 'bg-[#eef4f2]', text: 'text-[#7A9B8E]', dot: '#7A9B8E' },
+  unimed:     { bg: 'bg-blue-50',   text: 'text-blue-500',   dot: '#3b82f6' },
+}
+
 // ─── Sparkline ────────────────────────────────────────────────────────────────
 
 function Sparkline({ data, color }: { data: number[]; color: string }) {
@@ -96,8 +118,7 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
     ctx.beginPath()
     data.forEach((v, i) => {
       const x = i * w, y = h - ((v - mn) / r) * (h - 4) - 2
-      if (i === 0) ctx.moveTo(x, y)
-      else ctx.lineTo(x, y)
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
     })
     ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke()
     ctx.lineTo((data.length - 1) * w, h); ctx.lineTo(0, h); ctx.closePath()
@@ -158,7 +179,6 @@ function AbsenceModal({ affected, onConfirm, onCancel, sending, done, notifiedCo
     }}>
       <div style={{ background: 'white', borderRadius: 20, padding: '32px', maxWidth: 480, width: '100%', boxShadow: '0 24px 64px rgba(0,0,0,0.2)' }}>
         {done ? (
-          // ── Sucesso ──
           <div style={{ textAlign: 'center' }}>
             <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#eef4f2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <CheckCircle size={28} color="#7A9B8E" />
@@ -169,35 +189,25 @@ function AbsenceModal({ affected, onConfirm, onCancel, sending, done, notifiedCo
             <p style={{ fontFamily: 'Jost, sans-serif', fontSize: 13, color: '#8B8B8B', margin: '0 0 24px', lineHeight: 1.6 }}>
               {notifiedCount} paciente{notifiedCount !== 1 ? 's' : ''} recebeu o aviso com o link para reagendar ou desmarcar.
             </p>
-            <button
-              onClick={onCancel}
-              style={{ width: '100%', padding: '12px', background: '#2C3E3A', color: 'white', border: 'none', borderRadius: 10, fontFamily: 'Jost, sans-serif', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}
-            >
+            <button onClick={onCancel} style={{ width: '100%', padding: '12px', background: '#2C3E3A', color: 'white', border: 'none', borderRadius: 10, fontFamily: 'Jost, sans-serif', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
               Fechar
             </button>
           </div>
         ) : (
-          // ── Confirmação ──
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
               <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fff8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <AlertTriangle size={22} color="#C9A66B" />
               </div>
               <div>
-                <h3 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 20, color: '#2C3E3A', margin: 0 }}>
-                  Registrar ausência
-                </h3>
-                <p style={{ fontFamily: 'Jost, sans-serif', fontSize: 12, color: '#8B8B8B', margin: 0 }}>
-                  Os pacientes abaixo serão notificados e as consultas canceladas
-                </p>
+                <h3 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 20, color: '#2C3E3A', margin: 0 }}>Registrar ausência</h3>
+                <p style={{ fontFamily: 'Jost, sans-serif', fontSize: 12, color: '#8B8B8B', margin: 0 }}>Os pacientes abaixo serão notificados e as consultas canceladas</p>
               </div>
             </div>
 
             {affected.length === 0 ? (
               <div style={{ background: '#F5F1EA', borderRadius: 12, padding: '16px', marginBottom: 20, textAlign: 'center' }}>
-                <p style={{ fontFamily: 'Jost, sans-serif', fontSize: 13, color: '#8B8B8B', margin: 0 }}>
-                  Nenhuma consulta pendente a partir de agora.
-                </p>
+                <p style={{ fontFamily: 'Jost, sans-serif', fontSize: 13, color: '#8B8B8B', margin: 0 }}>Nenhuma consulta pendente a partir de agora.</p>
               </div>
             ) : (
               <div style={{ background: '#F5F1EA', borderRadius: 12, marginBottom: 16, maxHeight: 220, overflowY: 'auto' }}>
@@ -209,22 +219,13 @@ function AbsenceModal({ affected, onConfirm, onCancel, sending, done, notifiedCo
                       </span>
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontFamily: 'Jost, sans-serif', fontSize: 13, fontWeight: 500, color: '#2C3E3A', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {a.patient_name}
-                      </p>
-                      <p style={{ fontFamily: 'Jost, sans-serif', fontSize: 11, color: '#8B8B8B', margin: 0 }}>
-                        {formatHora(a.scheduled_at)} · {getTipoConfig(a.service_type).label}
-                      </p>
+                      <p style={{ fontFamily: 'Jost, sans-serif', fontSize: 13, fontWeight: 500, color: '#2C3E3A', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.patient_name}</p>
+                      <p style={{ fontFamily: 'Jost, sans-serif', fontSize: 11, color: '#8B8B8B', margin: 0 }}>{formatHora(a.scheduled_at)} · {getTipoConfig(a.service_type).label}</p>
                     </div>
-                    {a.patient_email ? (
-                      <span style={{ fontSize: 10, background: '#eef4f2', color: '#7A9B8E', padding: '2px 8px', borderRadius: 100, fontFamily: 'Jost, sans-serif', fontWeight: 500, flexShrink: 0 }}>
-                        email ✓
-                      </span>
-                    ) : (
-                      <span style={{ fontSize: 10, background: '#fef3f2', color: '#e05c4b', padding: '2px 8px', borderRadius: 100, fontFamily: 'Jost, sans-serif', fontWeight: 500, flexShrink: 0 }}>
-                        sem email
-                      </span>
-                    )}
+                    {a.patient_email
+                      ? <span style={{ fontSize: 10, background: '#eef4f2', color: '#7A9B8E', padding: '2px 8px', borderRadius: 100, fontFamily: 'Jost, sans-serif', fontWeight: 500, flexShrink: 0 }}>email ✓</span>
+                      : <span style={{ fontSize: 10, background: '#fef3f2', color: '#e05c4b', padding: '2px 8px', borderRadius: 100, fontFamily: 'Jost, sans-serif', fontWeight: 500, flexShrink: 0 }}>sem email</span>
+                    }
                   </div>
                 ))}
               </div>
@@ -238,34 +239,16 @@ function AbsenceModal({ affected, onConfirm, onCancel, sending, done, notifiedCo
             )}
 
             <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={onCancel}
-                disabled={sending}
-                style={{ flex: 1, padding: '12px', background: 'transparent', color: '#8B8B8B', border: '1.5px solid #EDE9E2', borderRadius: 10, fontFamily: 'Jost, sans-serif', fontSize: 14, cursor: 'pointer' }}
-              >
+              <button onClick={onCancel} disabled={sending}
+                style={{ flex: 1, padding: '12px', background: 'transparent', color: '#8B8B8B', border: '1.5px solid #EDE9E2', borderRadius: 10, fontFamily: 'Jost, sans-serif', fontSize: 14, cursor: 'pointer' }}>
                 Cancelar
               </button>
-              <button
-                onClick={onConfirm}
-                disabled={sending || affected.length === 0}
-                style={{
-                  flex: 2, padding: '12px',
-                  background: affected.length === 0 ? '#EDE9E2' : '#C9A66B',
-                  color: affected.length === 0 ? '#8B8B8B' : 'white',
-                  border: 'none', borderRadius: 10,
-                  fontFamily: 'Jost, sans-serif', fontSize: 13, fontWeight: 500,
-                  cursor: affected.length === 0 ? 'not-allowed' : 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                }}
-              >
-                {sending ? (
-                  <>
-                    <div style={{ width: 14, height: 14, border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                    Enviando...
-                  </>
-                ) : (
-                  `Confirmar e notificar ${withEmail.length} paciente${withEmail.length !== 1 ? 's' : ''}`
-                )}
+              <button onClick={onConfirm} disabled={sending || affected.length === 0}
+                style={{ flex: 2, padding: '12px', background: affected.length === 0 ? '#EDE9E2' : '#C9A66B', color: affected.length === 0 ? '#8B8B8B' : 'white', border: 'none', borderRadius: 10, fontFamily: 'Jost, sans-serif', fontSize: 13, fontWeight: 500, cursor: affected.length === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                {sending
+                  ? <><div style={{ width: 14, height: 14, border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />Enviando...</>
+                  : `Confirmar e notificar ${withEmail.length} paciente${withEmail.length !== 1 ? 's' : ''}`
+                }
               </button>
             </div>
           </>
@@ -281,7 +264,8 @@ export default function Dashboard() {
   const { profile } = useAuth()
 
   const [kpi, setKpi] = useState<KpiData>({
-    consultasHoje: 0, consultasOntem: 0, proximaDisponivel: null,
+    consultasHoje: 0, consultasOntem: 0,
+    proximoNome: null, proximoHorario: null, proximoPagamento: null,
     slotsOcupados: 0, totalSlots: 0, pendentesConfirmacao: 0,
     pendentesVencemHoje: 0, cancelamentos: 0, cancelamentosOntem: 0, confirmados: 0,
   })
@@ -292,7 +276,6 @@ export default function Dashboard() {
   const [notifs, setNotifs]                 = useState<Notif[]>([])
   const [loading, setLoading]               = useState(true)
 
-  // Absence state
   const [showAbsenceModal, setShowAbsenceModal] = useState(false)
   const [absenceAffected, setAbsenceAffected]   = useState<Appointment[]>([])
   const [absenceSending, setAbsenceSending]     = useState(false)
@@ -313,7 +296,7 @@ export default function Dashboard() {
       const inicioMes   = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString()
       const em7dias     = new Date(Date.now() + 7 * 86400000).toISOString()
 
-      const { data: apptHoje }           = await supabase.from('appointments').select('id, scheduled_at, service_type, status, slot_id, patients(name, email)').gte('scheduled_at', inicioHoje).lte('scheduled_at', fimHoje).neq('status', 'cancelado').order('scheduled_at', { ascending: true }).returns<AppointmentRow[]>()
+      const { data: apptHoje }           = await supabase.from('appointments').select('id, scheduled_at, service_type, status, slot_id, payment_type, patients(name, email)').gte('scheduled_at', inicioHoje).lte('scheduled_at', fimHoje).neq('status', 'cancelado').order('scheduled_at', { ascending: true }).returns<AppointmentRow[]>()
       const { data: apptOntem }          = await supabase.from('appointments').select('id').gte('scheduled_at', inicioOntem).lte('scheduled_at', fimOntem).neq('status', 'cancelado').returns<AppointmentIdRow[]>()
       const { data: pendentes }          = await supabase.from('appointments').select('id, scheduled_at').eq('status', 'pendente').gte('scheduled_at', new Date().toISOString()).lte('scheduled_at', em7dias).returns<AppointmentPendingRow[]>()
       const { data: cancelHoje }         = await supabase.from('appointments').select('id').eq('status', 'cancelado').gte('scheduled_at', inicioHoje).lte('scheduled_at', fimHoje).returns<AppointmentIdRow[]>()
@@ -336,12 +319,24 @@ export default function Dashboard() {
         service_type:  a.service_type ?? 'consulta',
         status:        a.status,
         slot_id:       a.slot_id ?? null,
+        payment_type:  a.payment_type ?? null,
       }))
 
-      const proximaDisponivel     = hojeNorm.filter(c => (c.status === 'pendente' || c.status === 'confirmado') && new Date(c.scheduled_at) > new Date()).at(0)?.scheduled_at ?? null
-      const pendentesVencemHoje   = (pendentes ?? []).filter(p => p.scheduled_at >= inicioHoje && p.scheduled_at <= fimHoje).length
-      const totalSlots            = (slotsHoje ?? []).length
-      const slotsOcupados         = (slotsHoje ?? []).filter(s => !s.is_available).length
+      // ── Próximo paciente por prioridade ──────────────────────────────────
+      const proximos = hojeNorm
+        .filter(c => (c.status === 'pendente' || c.status === 'confirmado' || c.status === 'aguardando') && new Date(c.scheduled_at) > new Date())
+        .sort((a, b) => {
+          const pA = getPaymentPriority(a.payment_type)
+          const pB = getPaymentPriority(b.payment_type)
+          if (pA !== pB) return pA - pB
+          return new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
+        })
+
+      const proximo = proximos[0] ?? null
+
+      const pendentesVencemHoje = (pendentes ?? []).filter(p => p.scheduled_at >= inicioHoje && p.scheduled_at <= fimHoje).length
+      const totalSlots          = (slotsHoje ?? []).length
+      const slotsOcupados       = (slotsHoje ?? []).filter(s => !s.is_available).length
 
       const semanas: WeekData = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'].map((label, i) => ({
         label,
@@ -353,12 +348,21 @@ export default function Dashboard() {
 
       const notifsMapped: Notif[] = (recentes ?? []).map(r => {
         const nome = resolvePatient(r.patients)?.name ?? 'Paciente'
-        if (r.status === 'cancelado') return { id: r.id, icon: 'x' as const, text: `${nome} cancelou — ${formatHora(r.scheduled_at)}`, time: 'recente', bg: 'bg-red-50', tc: 'text-red-500' }
-        if (r.status === 'confirmado') return { id: r.id, icon: 'check' as const, text: `${nome} confirmou presença`, time: 'recente', bg: 'bg-[#eef4f2]', tc: 'text-[#7A9B8E]' }
-        return { id: r.id, icon: 'clock' as const, text: `${nome} não confirmou — ${formatHora(r.scheduled_at)}`, time: 'recente', bg: 'bg-[#fdf6f0]', tc: 'text-[#C9A66B]' }
+        if (r.status === 'cancelado')  return { id: r.id, icon: 'x'     as const, text: `${nome} cancelou — ${formatHora(r.scheduled_at)}`, time: 'recente', bg: 'bg-red-50',      tc: 'text-red-500'      }
+        if (r.status === 'confirmado') return { id: r.id, icon: 'check' as const, text: `${nome} confirmou presença`,                        time: 'recente', bg: 'bg-[#eef4f2]',  tc: 'text-[#7A9B8E]'   }
+        return                                { id: r.id, icon: 'clock' as const, text: `${nome} não confirmou — ${formatHora(r.scheduled_at)}`, time: 'recente', bg: 'bg-[#fdf6f0]', tc: 'text-[#C9A66B]' }
       })
 
-      setKpi({ consultasHoje: hojeNorm.length, consultasOntem: (apptOntem ?? []).length, proximaDisponivel, slotsOcupados, totalSlots, pendentesConfirmacao: (pendentes ?? []).length, pendentesVencemHoje, cancelamentos: (cancelHoje ?? []).length, cancelamentosOntem: (cancelOntem ?? []).length, confirmados: (confirmadosHoje ?? []).length })
+      setKpi({
+        consultasHoje: hojeNorm.length, consultasOntem: (apptOntem ?? []).length,
+        proximoNome:      proximo?.patient_name  ?? null,
+        proximoHorario:   proximo?.scheduled_at  ?? null,
+        proximoPagamento: proximo?.payment_type  ?? null,
+        slotsOcupados, totalSlots,
+        pendentesConfirmacao: (pendentes ?? []).length, pendentesVencemHoje,
+        cancelamentos: (cancelHoje ?? []).length, cancelamentosOntem: (cancelOntem ?? []).length,
+        confirmados: (confirmadosHoje ?? []).length,
+      })
       setAgendaHoje(hojeNorm.slice(0, 6))
       setWeekData(semanas)
       setTiposData(tipos)
@@ -371,8 +375,6 @@ export default function Dashboard() {
     return () => { cancelled = true; supabase.removeChannel(channel) }
   }, [])
 
-  // ── Absence handlers ──────────────────────────────────────────────────────
-
   async function handleOpenAbsence() {
     const now     = new Date().toISOString()
     const hoje    = new Date()
@@ -380,7 +382,7 @@ export default function Dashboard() {
 
     const { data } = await supabase
       .from('appointments')
-      .select('id, scheduled_at, service_type, status, slot_id, patients(name, email)')
+      .select('id, scheduled_at, service_type, status, slot_id, payment_type, patients(name, email)')
       .gte('scheduled_at', now)
       .lte('scheduled_at', fimHoje)
       .in('status', ['pendente', 'confirmado'])
@@ -395,6 +397,7 @@ export default function Dashboard() {
       service_type:  a.service_type ?? 'consulta',
       status:        a.status,
       slot_id:       a.slot_id ?? null,
+      payment_type:  a.payment_type ?? null,
     }))
 
     setAbsenceAffected(affected)
@@ -406,33 +409,15 @@ export default function Dashboard() {
   async function handleConfirmAbsence() {
     setAbsenceSending(true)
     let notified = 0
-
     for (const appt of absenceAffected) {
-      // 1. Cancela o agendamento
       await supabase.from('appointments').update({ status: 'cancelado' }).eq('id', appt.id)
-
-      // 2. Libera o slot
-      if (appt.slot_id) {
-        await supabase.from('available_slots').update({ is_available: true }).eq('id', appt.slot_id)
-      }
-
-      // 3. Atualiza lead pelo telefone — busca pelo patient_email como fallback
+      if (appt.slot_id) await supabase.from('available_slots').update({ is_available: true }).eq('id', appt.slot_id)
       await supabase.from('leads').update({ status: 'cancelado' }).eq('appointment_at', appt.scheduled_at)
-
-      // 4. Envia email de ausência com link para reagendar ou desmarcar
       if (appt.patient_email) {
-        await supabase.functions.invoke('send-absence-email', {
-          body: {
-            patientName:  appt.patient_name,
-            patientEmail: appt.patient_email,
-            scheduledAt:  appt.scheduled_at,
-            serviceType:  appt.service_type,
-          },
-        })
+        await supabase.functions.invoke('send-absence-email', { body: { patientName: appt.patient_name, patientEmail: appt.patient_email, scheduledAt: appt.scheduled_at, serviceType: appt.service_type } })
         notified++
       }
     }
-
     setAbsenceNotified(notified)
     setAbsenceSending(false)
     setAbsenceDone(true)
@@ -440,11 +425,11 @@ export default function Dashboard() {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  const animConsultas     = useCountUp(kpi.consultasHoje)
-  const animPendentes     = useCountUp(kpi.pendentesConfirmacao)
-  const animCancelamentos = useCountUp(kpi.cancelamentos)
+  const animConsultas      = useCountUp(kpi.consultasHoje)
+  const animPendentes      = useCountUp(kpi.pendentesConfirmacao)
+  const animCancelamentos  = useCountUp(kpi.cancelamentos)
   const deltaConsultas     = kpi.consultasHoje - kpi.consultasOntem
-  const deltaCancelamentos = kpi.cancelamentos  - kpi.cancelamentosOntem
+  const deltaCancelamentos = kpi.cancelamentos - kpi.cancelamentosOntem
   const tiposEntries       = Object.entries(tiposData).sort((a, b) => b[1] - a[1]).slice(0, 4)
   const totalTipos         = tiposEntries.reduce((s, [, v]) => s + v, 0) || 1
   const donutColors        = ['#7A9B8E', '#C9A66B', '#E8C4B8', '#6b7fc4']
@@ -468,6 +453,8 @@ export default function Dashboard() {
   const diaSemana     = hoje.toLocaleDateString('pt-BR', { weekday: 'long' })
   const dataFormatada = hoje.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })
   const primeiroNome  = profile?.name?.split(' ')[0] ?? ''
+
+  const pagCfg = kpi.proximoPagamento ? (paymentColors[kpi.proximoPagamento] ?? paymentColors['particular']) : null
 
   if (loading) return (
     <div className="flex h-64 items-center justify-center">
@@ -497,14 +484,12 @@ export default function Dashboard() {
           <p className="text-sm text-[#8B8B8B] capitalize">{diaSemana}, {dataFormatada}</p>
           <div className="mt-1 flex items-center justify-between">
             <h2 className="text-2xl font-bold text-[#2C3E3A]" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
-              Olá {primeiroNome} 
+              Olá {primeiroNome}
             </h2>
             <div className="flex items-center gap-3">
-              {/* Botão Ausência */}
               <button
                 onClick={handleOpenAbsence}
-                className="flex items-center gap-2 rounded-full border border-[#f5d9a8] bg-[#fff8f0] px-4 py-1.5 text-xs font-medium text-[#C9A66B] transition-all hover:bg-[#C9A66B] hover:text-white hover:border-[#C9A66B]"
-              >
+                className="flex items-center gap-2 rounded-full border border-[#f5d9a8] bg-[#fff8f0] px-4 py-1.5 text-xs font-medium text-[#C9A66B] transition-all hover:bg-[#C9A66B] hover:text-white hover:border-[#C9A66B]">
                 <AlertTriangle size={13} />
                 Registrar ausência
               </button>
@@ -519,6 +504,8 @@ export default function Dashboard() {
 
         {/* KPIs */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 flex-shrink-0">
+
+          {/* Card 1 — Consultas hoje */}
           <div className="rounded-2xl border border-[#F5F1EA] bg-white p-4 shadow-sm">
             <p className="text-xs font-medium text-[#8B8B8B]">Consultas hoje</p>
             <p className="mt-1 text-3xl font-bold text-[#2C3E3A]">{animConsultas}</p>
@@ -529,30 +516,71 @@ export default function Dashboard() {
             <Sparkline data={[8, 10, 7, 12, 9, 11, kpi.consultasHoje]} color="#7A9B8E" />
           </div>
 
+          {/* Card 2 — Próximo paciente (por prioridade) */}
           <div className="rounded-2xl border border-[#F5F1EA] bg-white p-4 shadow-sm">
-            <p className="text-xs font-medium text-[#8B8B8B]">Próxima consulta</p>
-            {kpi.proximaDisponivel ? (
+            <p className="text-xs font-medium text-[#8B8B8B]">Próximo paciente</p>
+
+            {kpi.proximoNome ? (
               <>
-                <p className="mt-1 text-lg font-bold text-[#2C3E3A]">{formatHora(kpi.proximaDisponivel)}</p>
-                <p className="mt-1 flex items-center gap-1 text-xs text-[#8B8B8B]"><Clock size={11} /> {tempoAte(kpi.proximaDisponivel)}</p>
+                {/* Nome completo */}
+                <p className="mt-1 text-sm font-bold text-[#2C3E3A] leading-tight line-clamp-2" style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 16 }}>
+                  {kpi.proximoNome}
+                </p>
+
+                {/* Horário */}
+                <p className="mt-1 flex items-center gap-1 text-xs text-[#8B8B8B]">
+                  <Clock size={11} />
+                  {formatHora(kpi.proximoHorario!)} · {tempoAte(kpi.proximoHorario!)}
+                </p>
+
+                {/* Badge de pagamento */}
+                {pagCfg && kpi.proximoPagamento && (
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <span className={`inline-flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full font-semibold ${pagCfg.bg} ${pagCfg.text}`}>
+                      <CreditCard size={10} />
+                      {paymentLabel[kpi.proximoPagamento] ?? kpi.proximoPagamento}
+                    </span>
+                    {kpi.proximoPagamento === 'particular' && (
+                      <span className="text-[9px] text-[#7A9B8E] font-semibold bg-[#eef4f2] px-1.5 py-0.5 rounded-full">
+                        ★ Prioridade
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Barra de slots */}
+                {kpi.totalSlots > 0 ? (
+                  <>
+                    <div className="mt-2 flex gap-1">
+                      {Array.from({ length: Math.min(kpi.totalSlots, 12) }).map((_, i) => (
+                        <div key={i} className="h-1.5 flex-1 rounded-full" style={{ background: i < kpi.slotsOcupados ? '#7A9B8E' : '#F5F1EA' }} />
+                      ))}
+                    </div>
+                    <p className="mt-1 text-[10px] text-[#8B8B8B]">{kpi.slotsOcupados} de {kpi.totalSlots} slots ocupados</p>
+                  </>
+                ) : null}
               </>
             ) : (
-              <p className="mt-1 text-base font-semibold text-[#8B8B8B]">Sem horários</p>
-            )}
-            {kpi.totalSlots > 0 ? (
               <>
-                <div className="mt-2 flex gap-1">
-                  {Array.from({ length: kpi.totalSlots }).map((_, i) => (
-                    <div key={i} className="h-1.5 flex-1 rounded-full" style={{ background: i < kpi.slotsOcupados ? '#7A9B8E' : '#F5F1EA' }} />
-                  ))}
-                </div>
-                <p className="mt-1 text-[10px] text-[#8B8B8B]">{kpi.slotsOcupados} de {kpi.totalSlots} slots ocupados</p>
+                <p className="mt-1 text-base font-semibold text-[#8B8B8B]">Sem pacientes</p>
+                <p className="mt-0.5 text-[10px] text-[#8B8B8B]">Nenhuma consulta pendente</p>
+                {kpi.totalSlots > 0 ? (
+                  <>
+                    <div className="mt-2 flex gap-1">
+                      {Array.from({ length: Math.min(kpi.totalSlots, 12) }).map((_, i) => (
+                        <div key={i} className="h-1.5 flex-1 rounded-full" style={{ background: i < kpi.slotsOcupados ? '#7A9B8E' : '#F5F1EA' }} />
+                      ))}
+                    </div>
+                    <p className="mt-1 text-[10px] text-[#8B8B8B]">{kpi.slotsOcupados} de {kpi.totalSlots} slots ocupados</p>
+                  </>
+                ) : (
+                  <p className="mt-2 text-[10px] text-[#8B8B8B]">Nenhum slot cadastrado hoje</p>
+                )}
               </>
-            ) : (
-              <p className="mt-2 text-[10px] text-[#8B8B8B]">Nenhum slot cadastrado hoje</p>
             )}
           </div>
 
+          {/* Card 3 — Pendentes */}
           <div className="rounded-2xl border border-[#F5F1EA] bg-white p-4 shadow-sm">
             <p className="text-xs font-medium text-[#8B8B8B]">Pendentes de confirmação</p>
             <p className="mt-1 text-3xl font-bold text-[#2C3E3A]">{animPendentes}</p>
@@ -560,6 +588,7 @@ export default function Dashboard() {
             <Sparkline data={[4, 6, 3, 7, 5, 6, kpi.pendentesConfirmacao]} color="#C9A66B" />
           </div>
 
+          {/* Card 4 — Cancelamentos */}
           <div className="rounded-2xl border border-[#F5F1EA] bg-white p-4 shadow-sm">
             <p className="text-xs font-medium text-[#8B8B8B]">Cancelamentos</p>
             <p className="mt-1 text-3xl font-bold text-[#2C3E3A]">{animCancelamentos}</p>
