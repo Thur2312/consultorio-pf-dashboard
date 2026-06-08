@@ -1035,8 +1035,8 @@ export default function Agenda() {
       )}
 
       {/* ═══ TAB SLOTS ═══ */}
-{tab === 'slots' && (
-  <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {tab === 'slots' && (
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* Header da aba */}
           <div className="flex items-center justify-between mb-3 flex-shrink-0">
             <div>
