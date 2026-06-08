@@ -388,11 +388,11 @@ function WeekRow({
   }, {})
 
   return (
-    <div className={`border rounded-2xl overflow-hidden transition-all ${
-      week.isOpen ? 'border-[#7A9B8E]/30 bg-white' : 'border-[#e8e4de] bg-[#fafaf8]'
-    }`}>
+   <div className={`border rounded-2xl transition-all flex-shrink-0 ${
+  week.isOpen ? 'border-[#7A9B8E]/30 bg-white' : 'border-[#e8e4de] bg-[#fafaf8]'
+}`}>
       {/* Row header */}
-      <div className="flex items-center gap-3 px-4 py-3">
+  <div className="flex items-center gap-3 px-4" style={{ minHeight: 56 }}>
 
         {/* Week badge */}
         <div className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center flex-shrink-0 ${
@@ -760,7 +760,7 @@ export default function Agenda() {
   const serviceLabel = (v: string) => serviceLabelMap[v] ?? v
 
   return (
-<div className="max-w-5xl mx-auto flex flex-col" style={{ height: 'calc(100vh - 64px)' }}>
+<div className="max-w-5xl mx-auto flex flex-col gap-0">
 
       {/* Header */}
       <div className="flex items-center justify-between mb-3 flex-shrink-0">
@@ -803,7 +803,7 @@ export default function Agenda() {
 
       {/* ═══ TAB AGENDA ═══ */}
       {tab === 'agenda' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0">
+<div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ height: 'calc(100vh - 180px)' }}>
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm flex flex-col min-h-0 overflow-hidden">
             <div className="flex items-center justify-between px-5 pt-4 pb-2 flex-shrink-0">
               <button onClick={() => navigate('prev')} className="w-7 h-7 rounded-lg hover:bg-[#F5F1EA] flex items-center justify-center text-[#8B8B8B]">
@@ -1036,7 +1036,7 @@ export default function Agenda() {
 
       {/* ═══ TAB SLOTS ═══ */}
       {tab === 'slots' && (
-<div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+<div className="flex flex-col">
           {/* Header da aba */}
           <div className="flex items-center justify-between mb-3 flex-shrink-0">
             <div>
@@ -1060,7 +1060,7 @@ export default function Agenda() {
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#7A9B8E] border-t-transparent" />
             </div>
           ) : (
-<div className="flex flex-col gap-2 overflow-y-auto pr-1" style={{ flex: 1, minHeight: 0, maxHeight: '100%' }}>
+<div className="flex flex-col gap-2 overflow-y-auto pr-2 pb-4" style={{ maxHeight: 'calc(100vh - 220px)' }}>
               {weekList.map(week => (
                 <WeekRow
                   key={`${week.year}-W${week.weekNumber}`}
