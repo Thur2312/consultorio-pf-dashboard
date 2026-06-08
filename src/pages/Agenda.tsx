@@ -1035,8 +1035,8 @@ export default function Agenda() {
       )}
 
       {/* ═══ TAB SLOTS ═══ */}
-      {tab === 'slots' && (
-        <div className="flex flex-col flex-1 min-h-0">
+{tab === 'slots' && (
+  <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* Header da aba */}
           <div className="flex items-center justify-between mb-3 flex-shrink-0">
             <div>
@@ -1060,7 +1060,7 @@ export default function Agenda() {
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#7A9B8E] border-t-transparent" />
             </div>
           ) : (
-            <div className="flex flex-col gap-2 flex-1 overflow-y-auto min-h-0 pr-1">
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 4 }}>
               {weekList.map(week => (
                 <WeekRow
                   key={`${week.year}-W${week.weekNumber}`}
