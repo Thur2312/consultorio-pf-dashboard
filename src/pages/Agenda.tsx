@@ -526,7 +526,7 @@ export default function Agenda() {
   const [slotSuccess, setSlotSuccess]       = useState('')
   const [slotError, setSlotError]           = useState('')
   const [bookingSlot, setBookingSlot]       = useState<Slot | null>(null)
-  const [weeksAhead, setWeeksAhead]         = useState(16)
+  const [weeksAhead, setWeeksAhead]         = useState(8)
 
   const autoRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -760,7 +760,7 @@ export default function Agenda() {
   const serviceLabel = (v: string) => serviceLabelMap[v] ?? v
 
   return (
-    <div className="max-w-5xl mx-auto flex flex-col" style={{ height: 'calc(100vh - 64px)', overflow: 'hidden' }}>
+<div className="max-w-5xl mx-auto flex flex-col" style={{ height: 'calc(100vh - 64px)' }}>
 
       {/* Header */}
       <div className="flex items-center justify-between mb-3 flex-shrink-0">
@@ -1036,7 +1036,7 @@ export default function Agenda() {
 
       {/* ═══ TAB SLOTS ═══ */}
       {tab === 'slots' && (
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+<div className="flex flex-col flex-1 min-h-0 overflow-hidden">
           {/* Header da aba */}
           <div className="flex items-center justify-between mb-3 flex-shrink-0">
             <div>
@@ -1060,7 +1060,7 @@ export default function Agenda() {
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#7A9B8E] border-t-transparent" />
             </div>
           ) : (
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 4 }}>
+<div className="flex flex-col gap-2 overflow-y-auto pr-1" style={{ flex: 1, minHeight: 0, maxHeight: '100%' }}>
               {weekList.map(week => (
                 <WeekRow
                   key={`${week.year}-W${week.weekNumber}`}
