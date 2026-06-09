@@ -44,9 +44,9 @@ type PatientPhone  = { phone: string }
 type WeekInfo = {
   weekNumber: number
   year: number
-  start: Date        // Monday
-  end: Date          // Friday
-  label: string      // "12/06 – 18/06"
+  start: Date
+  end: Date
+  label: string
   isOpen: boolean
   totalSlots: number
   availableSlots: number
@@ -119,7 +119,6 @@ function formatSlotDate(dateStr: string) {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })
 }
 
-/** ISO week number */
 function getISOWeek(date: Date): { week: number; year: number } {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
   const day = d.getUTCDay() || 7
@@ -131,7 +130,6 @@ function getISOWeek(date: Date): { week: number; year: number } {
   }
 }
 
-/** Monday of the ISO week */
 function getMondayOfWeek(week: number, year: number): Date {
   const jan4 = new Date(year, 0, 4)
   const jan4Day = jan4.getDay() || 7
@@ -140,12 +138,10 @@ function getMondayOfWeek(week: number, year: number): Date {
   return monday
 }
 
-/** Generate WeekInfo list from today + N weeks ahead */
 function buildWeekList(slots: Slot[], weeksAhead = 26): WeekInfo[] {
   const today = new Date()
   const { week: currentWeek, year: currentYear } = getISOWeek(today)
 
-  // Build a map: "YYYY-Www" -> slot counts
   const weekMap: Record<string, { total: number; available: number; occupied: number }> = {}
   for (const s of slots) {
     const d = new Date(s.date + 'T00:00:00')
@@ -168,8 +164,7 @@ function buildWeekList(slots: Slot[], weeksAhead = 26): WeekInfo[] {
 
     const key   = `${y}-W${String(w).padStart(2, '0')}`
     const stats = weekMap[key] ?? { total: 0, available: 0, occupied: 0 }
-
-    const fmt = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
+    const fmt   = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
 
     weeks.push({
       weekNumber:     w,
@@ -183,7 +178,6 @@ function buildWeekList(slots: Slot[], weeksAhead = 26): WeekInfo[] {
       occupiedSlots:  stats.occupied,
     })
 
-    // advance to next ISO week
     w++
     const maxWeek = new Date(y, 11, 28)
     const { week: lastWeek } = getISOWeek(maxWeek)
@@ -201,6 +195,107 @@ function PaymentBadge({ paymentType }: { paymentType: string | null }) {
     <span className={`inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full font-semibold ${cfg.bg} ${cfg.color}`}>
       {cfg.icon} {cfg.label}
     </span>
+  )
+}
+
+// ─── Modal de adicionar horário ───────────────────────────────────────────────
+
+function AddSlotModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [date, setDate]     = useState('')
+  const [time, setTime]     = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError]   = useState('')
+
+  async function handleSave() {
+    if (!date) { setError('Selecione uma data.'); return }
+    if (!time) { setError('Selecione um horário.'); return }
+    setSaving(true); setError('')
+    try {
+      const { error: e } = await supabase.from('available_slots').insert({
+        date,
+        time,
+        service_type: 'ambos',
+        is_available: true,
+      })
+      if (e) throw new Error('Erro ao adicionar horário.')
+      onSuccess()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao salvar.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs overflow-hidden" onClick={e => e.stopPropagation()}>
+
+        <div className="px-6 pt-5 pb-4 bg-[#eef4f2]">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center">
+                <Plus size={16} className="text-[#7A9B8E]" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-[#2C3E3A]" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
+                  Novo Horário
+                </h3>
+                <p className="text-[10px] text-[#7A9B8E] font-medium mt-0.5">
+                  Adicionar horário disponível
+                </p>
+              </div>
+            </div>
+            <button onClick={onClose} className="w-6 h-6 rounded-full bg-white/70 flex items-center justify-center text-[#8B8B8B] hover:bg-white">
+              <X size={12} />
+            </button>
+          </div>
+        </div>
+
+        <div className="px-6 py-5 flex flex-col gap-4">
+          <div>
+            <label className="text-[10px] font-semibold text-[#8B8B8B] uppercase tracking-wide block mb-1">Data *</label>
+            <input
+              type="date"
+              value={date}
+              onChange={e => setDate(e.target.value)}
+              min={new Date().toISOString().split('T')[0]}
+              className="w-full border border-[#e8e4de] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7A9B8E] bg-white text-[#2C3E3A]"
+            />
+          </div>
+
+          <div>
+            <label className="text-[10px] font-semibold text-[#8B8B8B] uppercase tracking-wide block mb-1">Horário *</label>
+            <div className="grid grid-cols-4 gap-1.5 max-h-48 overflow-y-auto pr-1">
+              {HORARIOS_SUGERIDOS.map(h => (
+                <button
+                  key={h}
+                  onClick={() => setTime(h)}
+                  className={`py-1.5 rounded-xl text-[11px] font-medium border-2 transition-all ${
+                    time === h
+                      ? 'border-[#7A9B8E] bg-[#eef4f2] text-[#7A9B8E]'
+                      : 'border-[#e8e4de] text-[#8B8B8B] hover:border-[#7A9B8E]'
+                  }`}>
+                  {h}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {error && <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</p>}
+
+          <div className="flex gap-2 mt-1">
+            <button onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl border-2 border-[#e8e4de] text-[#8B8B8B] text-sm font-medium hover:bg-[#F5F1EA] transition-all">
+              Cancelar
+            </button>
+            <button onClick={handleSave} disabled={saving}
+              className="flex-1 py-2.5 rounded-xl bg-[#7A9B8E] text-white text-sm font-medium hover:bg-[#6a8a7e] transition-all disabled:opacity-50 flex items-center justify-center gap-1.5">
+              <CheckCircle size={13} />{saving ? 'Salvando...' : 'Adicionar'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -281,21 +376,18 @@ function SlotBookingModal({ slot, onClose, onSuccess }: { slot: Slot; onClose: (
         </div>
 
         <div className="px-6 py-5 flex flex-col gap-3">
-          {/* Nome */}
           <div>
             <label className="text-[10px] font-semibold text-[#8B8B8B] uppercase tracking-wide block mb-1">Nome *</label>
             <input type="text" placeholder="Nome completo" value={name} onChange={e => setName(e.target.value)}
               className="w-full border border-[#e8e4de] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7A9B8E] bg-white text-[#2C3E3A] placeholder:text-[#c0b8ae]" />
           </div>
 
-          {/* Telefone */}
           <div>
             <label className="text-[10px] font-semibold text-[#8B8B8B] uppercase tracking-wide block mb-1">Telefone *</label>
             <input type="tel" placeholder="(00) 00000-0000" value={phone} onChange={e => setPhone(e.target.value)}
               className="w-full border border-[#e8e4de] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7A9B8E] bg-white text-[#2C3E3A] placeholder:text-[#c0b8ae]" />
           </div>
 
-          {/* Especialidade */}
           <div>
             <label className="text-[10px] font-semibold text-[#8B8B8B] uppercase tracking-wide block mb-1">Especialidade</label>
             <div className="grid grid-cols-2 gap-1.5">
@@ -312,7 +404,6 @@ function SlotBookingModal({ slot, onClose, onSuccess }: { slot: Slot; onClose: (
             </div>
           </div>
 
-          {/* Pagamento */}
           <div>
             <label className="text-[10px] font-semibold text-[#8B8B8B] uppercase tracking-wide block mb-1">Pagamento</label>
             <div className="flex gap-2">
@@ -350,21 +441,15 @@ function SlotBookingModal({ slot, onClose, onSuccess }: { slot: Slot; onClose: (
 // ─── WeekRow ──────────────────────────────────────────────────────────────────
 
 function WeekRow({
-  week,
-  onOpen,
-  onBlock,
-  loading,
-  slots,
-  onBookSlot,
-  onDeleteSlot,
+  week, onOpen, onBlock, loading, slots, onBookSlot, onDeleteSlot,
 }: {
   week: WeekInfo
-  onOpen:      (w: WeekInfo) => void
-  onBlock:     (w: WeekInfo) => void
-  loading:     string | null   // weekKey being processed
-  slots:       Slot[]
-  onBookSlot:  (s: Slot) => void
-  onDeleteSlot:(id: string) => void
+  onOpen:       (w: WeekInfo) => void
+  onBlock:      (w: WeekInfo) => void
+  loading:      string | null
+  slots:        Slot[]
+  onBookSlot:   (s: Slot) => void
+  onDeleteSlot: (id: string) => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const weekKey = `${week.year}-W${String(week.weekNumber).padStart(2, '0')}`
@@ -374,7 +459,6 @@ function WeekRow({
     return w === week.weekNumber && y === week.year
   })()
 
-  // slots that belong to this week
   const weekSlots = slots.filter(s => {
     const d = new Date(s.date + 'T00:00:00')
     const { week: sw, year: sy } = getISOWeek(d)
@@ -388,13 +472,10 @@ function WeekRow({
   }, {})
 
   return (
-   <div className={`border rounded-2xl transition-all flex-shrink-0 ${
-  week.isOpen ? 'border-[#7A9B8E]/30 bg-white' : 'border-[#e8e4de] bg-[#fafaf8]'
-}`}>
-      {/* Row header */}
-  <div className="flex items-center gap-3 px-4" style={{ minHeight: 56 }}>
-
-        {/* Week badge */}
+    <div className={`border rounded-2xl transition-all flex-shrink-0 ${
+      week.isOpen ? 'border-[#7A9B8E]/30 bg-white' : 'border-[#e8e4de] bg-[#fafaf8]'
+    }`}>
+      <div className="flex items-center gap-3 px-4" style={{ minHeight: 56 }}>
         <div className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center flex-shrink-0 ${
           isCurrentWeek ? 'bg-[#7A9B8E] text-white' : week.isOpen ? 'bg-[#eef4f2] text-[#7A9B8E]' : 'bg-[#F5F1EA] text-[#b0a08a]'
         }`}>
@@ -402,7 +483,6 @@ function WeekRow({
           <span className="text-sm font-bold leading-none">{week.weekNumber}</span>
         </div>
 
-        {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-[#2C3E3A]">{week.label}</span>
@@ -422,7 +502,6 @@ function WeekRow({
           )}
         </div>
 
-        {/* Status + actions */}
         <div className="flex items-center gap-2 flex-shrink-0">
           {week.isOpen ? (
             <span className="flex items-center gap-1 text-[9px] text-[#7A9B8E] bg-[#eef4f2] px-2 py-1 rounded-full font-semibold">
@@ -435,18 +514,12 @@ function WeekRow({
           )}
 
           {week.isOpen ? (
-            <button
-              onClick={() => onBlock(week)}
-              disabled={isLoading}
-              title="Bloquear semana"
+            <button onClick={() => onBlock(week)} disabled={isLoading} title="Bloquear semana"
               className="w-7 h-7 rounded-lg border-2 border-red-200 text-red-400 hover:bg-red-50 flex items-center justify-center transition-all disabled:opacity-40">
               {isLoading ? <div className="w-3 h-3 border border-red-300 border-t-transparent rounded-full animate-spin" /> : <Lock size={11} />}
             </button>
           ) : (
-            <button
-              onClick={() => onOpen(week)}
-              disabled={isLoading}
-              title="Abrir semana"
+            <button onClick={() => onOpen(week)} disabled={isLoading} title="Abrir semana"
               className="w-7 h-7 rounded-lg border-2 border-[#7A9B8E] text-[#7A9B8E] hover:bg-[#eef4f2] flex items-center justify-center transition-all disabled:opacity-40">
               {isLoading ? <div className="w-3 h-3 border border-[#7A9B8E] border-t-transparent rounded-full animate-spin" /> : <Unlock size={11} />}
             </button>
@@ -461,7 +534,6 @@ function WeekRow({
         </div>
       </div>
 
-      {/* Expanded slots */}
       {expanded && week.isOpen && (
         <div className="border-t border-[#F5F1EA] px-4 py-3 flex flex-col gap-3 bg-[#fafcfb]">
           {Object.entries(slotsByDate).sort(([a], [b]) => a.localeCompare(b)).map(([date, daySlots]) => (
@@ -471,9 +543,7 @@ function WeekRow({
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {daySlots.map(slot => (
-                  <div
-                    key={slot.id}
-                    onClick={() => slot.is_available && onBookSlot(slot)}
+                  <div key={slot.id} onClick={() => slot.is_available && onBookSlot(slot)}
                     className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-medium transition-all ${
                       slot.is_available
                         ? 'border-[#eef4f2] bg-[#eef4f2] text-[#7A9B8E] cursor-pointer hover:border-[#7A9B8E] hover:bg-[#dff0e8]'
@@ -526,6 +596,7 @@ export default function Agenda() {
   const [slotSuccess, setSlotSuccess]       = useState('')
   const [slotError, setSlotError]           = useState('')
   const [bookingSlot, setBookingSlot]       = useState<Slot | null>(null)
+  const [addingSlot, setAddingSlot]         = useState(false)
   const [weeksAhead, setWeeksAhead]         = useState(8)
 
   const autoRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -589,11 +660,9 @@ export default function Agenda() {
     setSlotsLoading(false)
   }
 
-  // ── Abrir semana ────────────────────────────────────────────────────────────
   async function openWeek(week: WeekInfo) {
     const key = `${week.year}-W${String(week.weekNumber).padStart(2, '0')}`
-    setWeekLoading(key)
-    setSlotError('')
+    setWeekLoading(key); setSlotError('')
 
     const existingSet = new Set(slots.map(s => `${s.date}_${s.time.slice(0, 5)}`))
     const toInsert: { date: string; time: string; service_type: string; is_available: boolean }[] = []
@@ -633,11 +702,9 @@ export default function Agenda() {
     setWeekLoading(null)
   }
 
-  // ── Bloquear semana ─────────────────────────────────────────────────────────
   async function blockWeek(week: WeekInfo) {
     const key = `${week.year}-W${String(week.weekNumber).padStart(2, '0')}`
-    setWeekLoading(key)
-    setSlotError('')
+    setWeekLoading(key); setSlotError('')
 
     const toDelete = slots.filter(s => {
       const d = new Date(s.date + 'T00:00:00')
@@ -679,9 +746,9 @@ export default function Agenda() {
       const { error: aptError } = await supabase.from('appointments').update({ status: 'cancelado' }).eq('id', apt.id)
       if (aptError) throw new Error('Erro ao cancelar agendamento.')
 
-      const aptDate = apt.scheduled_at.split('T')[0]
+      const aptDate    = apt.scheduled_at.split('T')[0]
       const aptDateObj = new Date(apt.scheduled_at)
-      const aptTime = `${String(aptDateObj.getHours()).padStart(2, '0')}:${String(aptDateObj.getMinutes()).padStart(2, '0')}`
+      const aptTime    = `${String(aptDateObj.getHours()).padStart(2, '0')}:${String(aptDateObj.getMinutes()).padStart(2, '0')}`
 
       const { data: matchingSlots } = await supabase
         .from('available_slots').select('id, time').eq('date', aptDate).eq('is_available', false)
@@ -750,17 +817,16 @@ export default function Agenda() {
     navigator.clipboard.writeText(link).then(() => { setLinkCopied(true); setTimeout(() => setLinkCopied(false), 3000) })
   }
 
-  const weekList       = buildWeekList(slots, weeksAhead)
+  const weekList        = buildWeekList(slots, weeksAhead)
   const selectedDayApts = getAppointmentsForDay(selectedDate)
-  const today          = new Date()
-  const isCancelled    = selectedApt?.status === 'cancelado'
-  const isPendente     = selectedApt?.status === 'pendente'
-
-  const serviceIcon  = (v: string) => serviceIconMap[v]  ?? '🩺'
-  const serviceLabel = (v: string) => serviceLabelMap[v] ?? v
+  const today           = new Date()
+  const isCancelled     = selectedApt?.status === 'cancelado'
+  const isPendente      = selectedApt?.status === 'pendente'
+  const serviceIcon     = (v: string) => serviceIconMap[v]  ?? '🩺'
+  const serviceLabel    = (v: string) => serviceLabelMap[v] ?? v
 
   return (
-<div className="max-w-5xl mx-auto flex flex-col gap-0">
+    <div className="max-w-5xl mx-auto flex flex-col gap-0">
 
       {/* Header */}
       <div className="flex items-center justify-between mb-3 flex-shrink-0">
@@ -789,8 +855,8 @@ export default function Agenda() {
       {/* Tabs */}
       <div className="flex gap-1 bg-white border border-[#F5F1EA] rounded-xl p-1 shadow-sm w-fit mb-3 flex-shrink-0">
         {([
-          { key: 'agenda', label: 'Agendamentos',       icon: Calendar  },
-          { key: 'slots',  label: 'Gerenciar Horários', icon: Settings  },
+          { key: 'agenda', label: 'Agendamentos',       icon: Calendar },
+          { key: 'slots',  label: 'Gerenciar Horários', icon: Settings },
         ] as const).map(({ key, label, icon: Icon }) => (
           <button key={key} onClick={() => setTab(key)}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-all ${
@@ -803,7 +869,7 @@ export default function Agenda() {
 
       {/* ═══ TAB AGENDA ═══ */}
       {tab === 'agenda' && (
-<div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ height: 'calc(100vh - 180px)' }}>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ height: 'calc(100vh - 180px)' }}>
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm flex flex-col min-h-0 overflow-hidden">
             <div className="flex items-center justify-between px-5 pt-4 pb-2 flex-shrink-0">
               <button onClick={() => navigate('prev')} className="w-7 h-7 rounded-lg hover:bg-[#F5F1EA] flex items-center justify-center text-[#8B8B8B]">
@@ -1036,7 +1102,7 @@ export default function Agenda() {
 
       {/* ═══ TAB SLOTS ═══ */}
       {tab === 'slots' && (
-<div className="flex flex-col">
+        <div className="flex flex-col">
           {/* Header da aba */}
           <div className="flex items-center justify-between mb-3 flex-shrink-0">
             <div>
@@ -1048,19 +1114,26 @@ export default function Agenda() {
                 {weekList.filter(w => w.isOpen).length} semanas abertas · clique em uma semana para ver os horários
               </p>
             </div>
-            {(slotSuccess || slotError) && (
-              <p className={`text-xs font-medium px-3 py-1.5 rounded-xl ${slotSuccess ? 'text-[#7A9B8E] bg-[#eef4f2]' : 'text-red-500 bg-red-50'}`}>
-                {slotSuccess || slotError}
-              </p>
-            )}
+            <div className="flex items-center gap-2">
+              {(slotSuccess || slotError) && (
+                <p className={`text-xs font-medium px-3 py-1.5 rounded-xl ${slotSuccess ? 'text-[#7A9B8E] bg-[#eef4f2]' : 'text-red-500 bg-red-50'}`}>
+                  {slotSuccess || slotError}
+                </p>
+              )}
+              <button
+                onClick={() => setAddingSlot(true)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#7A9B8E] text-white text-xs font-medium hover:bg-[#6a8a7e] transition-all shadow-sm">
+                <Plus size={12} /> Adicionar horário
+              </button>
+            </div>
           </div>
 
           {slotsLoading ? (
-            <div className="flex-1 flex items-center justify-center">
+            <div className="flex items-center justify-center py-12">
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#7A9B8E] border-t-transparent" />
             </div>
           ) : (
-<div className="flex flex-col gap-2 overflow-y-auto pr-2 pb-4" style={{ maxHeight: 'calc(100vh - 220px)' }}>
+            <div className="flex flex-col gap-2 overflow-y-auto pr-2 pb-4" style={{ maxHeight: 'calc(100vh - 220px)' }}>
               {weekList.map(week => (
                 <WeekRow
                   key={`${week.year}-W${week.weekNumber}`}
@@ -1073,8 +1146,6 @@ export default function Agenda() {
                   onDeleteSlot={deleteSlot}
                 />
               ))}
-
-              {/* Carregar mais semanas */}
               <button
                 onClick={() => setWeeksAhead(p => p + 8)}
                 className="w-full py-2.5 rounded-xl border-2 border-dashed border-[#e8e4de] text-[#8B8B8B] text-xs font-medium hover:border-[#7A9B8E] hover:text-[#7A9B8E] transition-all flex items-center justify-center gap-1.5">
@@ -1212,6 +1283,19 @@ export default function Agenda() {
           slot={bookingSlot}
           onClose={() => setBookingSlot(null)}
           onSuccess={() => { setBookingSlot(null); loadSlots(); loadAppointments() }}
+        />
+      )}
+
+      {/* ═══ MODAL ADICIONAR HORÁRIO ═══ */}
+      {addingSlot && (
+        <AddSlotModal
+          onClose={() => setAddingSlot(false)}
+          onSuccess={() => {
+            setAddingSlot(false)
+            setSlotSuccess('Horário adicionado com sucesso!')
+            setTimeout(() => setSlotSuccess(''), 3000)
+            loadSlots()
+          }}
         />
       )}
     </div>

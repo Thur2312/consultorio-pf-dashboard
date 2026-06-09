@@ -21,13 +21,13 @@ type ServiceCategory = {
 }
 
 const SERVICE_CATEGORIES: ServiceCategory[] = [
-  { value: 'ginecologia',             label: 'Ginecologia Geral',          description: 'Consulta de rotina, prevenção e tratamento ginecológico',            icon: '🩺', color: '#7A9B8E' },
-  { value: 'obstetricia',             label: 'Obstetrícia / Pré-Natal',    description: 'Acompanhamento gestacional e pré-natal',                             icon: '🤰', color: '#C9A66B' },
-  { value: 'ginecologia_regenerativa',label: 'Ginecologia Regenerativa',   description: 'Tratamentos inovadores para qualidade de vida e saúde sexual',       icon: '✨', color: '#6b7fc4' },
-  { value: 'cirurgia_ginecologica',   label: 'Cirurgia Ginecológica',      description: 'Miomas, cistos, endometriose e outras patologias',                    icon: '🏥', color: '#e05c4b' },
-  { value: 'ninfoplastia',            label: 'Ninfoplastia',               description: 'Procedimento cirúrgico íntimo estético e funcional',                  icon: '💫', color: '#9b7fc4' },
-  { value: 'climaterio',             label: 'Climatério & Menopausa',     description: 'Acompanhamento e tratamento hormonal na menopausa',                   icon: '🌿', color: '#7aab6e' },
-  { value: 'retorno',                 label: 'Retorno / Resultado',        description: 'Consulta de retorno para avaliação de exames ou tratamentos',         icon: '📋', color: '#b08b5e' },
+  { value: 'ginecologia',              label: 'Ginecologia Geral',        description: 'Consulta de rotina, prevenção e tratamento ginecológico',          icon: '🩺', color: '#7A9B8E' },
+  { value: 'obstetricia',              label: 'Obstetrícia / Pré-Natal',  description: 'Acompanhamento gestacional e pré-natal',                           icon: '🤰', color: '#C9A66B' },
+  { value: 'ginecologia_regenerativa', label: 'Ginecologia Regenerativa', description: 'Tratamentos inovadores para qualidade de vida e saúde sexual',     icon: '✨', color: '#6b7fc4' },
+  { value: 'cirurgia_ginecologica',    label: 'Cirurgia Ginecológica',    description: 'Miomas, cistos, endometriose e outras patologias',                  icon: '🏥', color: '#e05c4b' },
+  { value: 'ninfoplastia',             label: 'Ninfoplastia',             description: 'Procedimento cirúrgico íntimo estético e funcional',                icon: '💫', color: '#9b7fc4' },
+  { value: 'climaterio',               label: 'Climatério & Menopausa',   description: 'Acompanhamento e tratamento hormonal na menopausa',                 icon: '🌿', color: '#7aab6e' },
+  { value: 'retorno',                  label: 'Retorno / Resultado',      description: 'Consulta de retorno para avaliação de exames ou tratamentos',       icon: '📋', color: '#b08b5e' },
 ]
 
 const STEPS = ['Serviço', 'Data & Hora', 'Seus dados', 'Confirmação']
@@ -173,11 +173,12 @@ export default function Agendar() {
     if (!selectedService) return
     async function fetchSlots() {
       setLoadingSlots(true)
+      // Busca todos os slots disponíveis — o service_type é registrado no agendamento,
+      // não no slot, pois a mesma agenda serve todas as especialidades.
       const { data } = await supabase
         .from('available_slots')
         .select('id, date, time, service_type, is_available')
         .eq('is_available', true)
-        .in('service_type', [selectedService, 'ambos'])
         .gte('date', new Date().toISOString().split('T')[0])
         .order('date', { ascending: true })
         .order('time',  { ascending: true })
@@ -577,8 +578,8 @@ export default function Agendar() {
                       ['Serviço',    selectedServiceObj?.label ?? selectedService],
                       ['Data',       selectedSlot ? formatDate(selectedSlot.date) : ''],
                       ['Horário',    selectedSlot?.time.slice(0,5) ?? ''],
-                      ['Paciente',   nome], 
-                      ['Pagamento', paymentType === 'particular' ? '$ Particular' : 'Unimed'],
+                      ['Paciente',   nome],
+                      ['Pagamento',  paymentType === 'particular' ? '$ Particular' : 'Unimed'],
                     ].map(([k,v]) => (
                       <div key={k} style={{ display:'flex', justifyContent:'space-between', gap:16, marginBottom:7 }}>
                         <span style={{ fontFamily:'Jost, sans-serif', fontSize:12, color:'#8B8B8B' }}>{k}</span>
