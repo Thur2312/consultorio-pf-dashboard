@@ -168,7 +168,7 @@ export default function Leads() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-[#2C3E3A]" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
-            Leads
+            Clientes
           </h2>
           <p className="text-[#8B8B8B] text-sm mt-1">{loading ? '...' : `${leads.length} contatos no total`}</p>
         </div>
