@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { AtendimentoIAProvider } from './contexts/AtendimentoIAContext'
 import Sidebar from './components/Sidebar'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
@@ -11,6 +12,7 @@ import Agendar from './pages/Agendar'
 import Landing from './pages/Landing'
 import ConfirmarConsulta from './pages/ConfirmarConsulta'
 import Gerenciar from './pages/Gerenciar'
+import AtendimentoIA from './pages/AtendimentoIA'
 
 function PrivateLayout() {
   const { user, loading } = useAuth()
@@ -24,18 +26,21 @@ function PrivateLayout() {
   if (!user) return <Navigate to="/login" replace />
 
   return (
-    <div className="flex min-h-screen bg-[#f5f0eb]">
-      <Sidebar />
-      <main className="flex-1 p-8">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/leads" element={<Leads />} />
-          <Route path="/agenda" element={<Agenda />} />
-          <Route path="/relatorios" element={<Relatorios />} />
-          <Route path="/configuracoes" element={<Configuracoes />} />
-        </Routes>
-      </main>
-    </div>
+    <AtendimentoIAProvider>
+      <div className="flex min-h-screen bg-[#f5f0eb]">
+        <Sidebar />
+        <main className="flex-1 p-8">
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/leads" element={<Leads />} />
+            <Route path="/agenda" element={<Agenda />} />
+            <Route path="/atendimento-ia" element={<AtendimentoIA />} />
+            <Route path="/relatorios" element={<Relatorios />} />
+            <Route path="/configuracoes" element={<Configuracoes />} />
+          </Routes>
+        </main>
+      </div>
+    </AtendimentoIAProvider>
   )
 }
 

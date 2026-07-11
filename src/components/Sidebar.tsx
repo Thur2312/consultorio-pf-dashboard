@@ -1,16 +1,19 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Calendar, BarChart2, LogOut } from 'lucide-react'
+import { LayoutDashboard, Users, Calendar, BarChart2, Bot, LogOut } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useAtendimentoIA } from '../contexts/AtendimentoIAContext'
 
 const links = [
   { to: '/painel', label: 'Painel', icon: LayoutDashboard },
   { to: '/painel/leads', label: 'Clientes', icon: Users },
   { to: '/painel/agenda', label: 'Agenda', icon: Calendar },
+  { to: '/painel/atendimento-ia', label: 'Atendimento IA', icon: Bot },
   { to: '/painel/relatorios', label: 'Relatórios', icon: BarChart2 },
 ]
 
 export default function Sidebar() {
   const { profile, signOut } = useAuth()
+  const { aguardandoHumanoCount } = useAtendimentoIA()
 
   return (
     <aside className="w-60 min-h-screen bg-white border-r border-[#F5F1EA] flex flex-col py-6 px-4">
@@ -41,7 +44,12 @@ export default function Sidebar() {
             }
           >
             <Icon size={18} />
-            {label}
+            <span className="flex-1">{label}</span>
+            {label === 'Atendimento IA' && aguardandoHumanoCount > 0 && (
+              <span className="bg-red-400 text-white text-[10px] min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center font-bold">
+                {aguardandoHumanoCount}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>
