@@ -38,6 +38,7 @@ type AtendimentoIAContextType = {
 
   updateAgentConfig: (partial: Record<string, unknown>) => Promise<{ error?: string }>
   testAgentConnection: (target: 'ia' | 'uazapi') => Promise<{ ok: boolean; message: string }>
+  gerarQrCodeUazapi: () => Promise<{ ok: boolean; connected?: boolean; qrcode?: string | null; pairCode?: string | null; message?: string }>
   addPersonaVersion: (version: { arquivo_nome: string; colunas: string[]; dados: Record<string, string>[] }) => Promise<void>
   revertPersonaVersion: (versionId: string) => Promise<void>
 }
@@ -285,6 +286,13 @@ export function AtendimentoIAProvider({ children }: { children: React.ReactNode 
     return data as { ok: boolean; message: string }
   }, [loadAll])
 
+  const gerarQrCodeUazapi = useCallback(async () => {
+    const { data, error } = await supabase.functions.invoke('agent-config-qrcode')
+    if (error) return { ok: false, message: error.message }
+    if ((data as { connected?: boolean })?.connected) await loadAll()
+    return data as { ok: boolean; connected?: boolean; qrcode?: string | null; pairCode?: string | null; message?: string }
+  }, [loadAll])
+
   const addPersonaVersion = useCallback(async (version: { arquivo_nome: string; colunas: string[]; dados: Record<string, string>[] }) => {
     await supabase.from('ia_personas').update({ ativa: false }).eq('ativa', true)
     const proximaVersao = (personaVersions[0]?.versao ?? 0) + 1
@@ -315,7 +323,7 @@ export function AtendimentoIAProvider({ children }: { children: React.ReactNode 
     aguardandoHumanoCount,
     assumirConversa, devolverParaIA, marcarResolvido, enviarMensagemManual, updateNotasInternas, simularMensagemRecebida, dismissToast,
     toggleAgenteGlobal, toggleNode, updateNodeCondicao,
-    updateAgentConfig, testAgentConnection, addPersonaVersion, revertPersonaVersion,
+    updateAgentConfig, testAgentConnection, gerarQrCodeUazapi, addPersonaVersion, revertPersonaVersion,
   }
 
   return (

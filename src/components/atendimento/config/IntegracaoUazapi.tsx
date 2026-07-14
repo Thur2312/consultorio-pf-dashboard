@@ -1,6 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { MessageCircle, CheckCircle2, XCircle, Loader2, Copy, Check, QrCode } from 'lucide-react'
 import { useAtendimentoIA } from '../../../contexts/AtendimentoIAContext'
+
+const QR_POLL_INTERVAL_MS = 5000
+const QR_MAX_POLLS = 24 // ~2 minutos de tentativas antes de parar sozinho
 
 const inputClass = 'w-full border border-[#F5F1EA] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7A9B8E] bg-white'
 
@@ -11,12 +14,81 @@ const statusMeta = {
 }
 
 export default function IntegracaoUazapi() {
-  const { agentConfig, updateAgentConfig, testAgentConnection } = useAtendimentoIA()
+  const { agentConfig, updateAgentConfig, testAgentConnection, gerarQrCodeUazapi } = useAtendimentoIA()
   const [novoToken, setNovoToken] = useState('')
+  const [baseUrl, setBaseUrl] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [testando, setTestando] = useState(false)
   const [resultadoTeste, setResultadoTeste] = useState<{ ok: boolean; message: string } | null>(null)
   const [copiado, setCopiado] = useState(false)
+
+  const [qrcode, setQrcode] = useState<string | null>(null)
+  const [pairCode, setPairCode] = useState<string | null>(null)
+  const [gerandoQr, setGerandoQr] = useState(false)
+  const [qrError, setQrError] = useState<string | null>(null)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pollCountRef = useRef(0)
+  const baseUrlInitRef = useRef(false)
+
+  useEffect(() => {
+    if (agentConfig && !baseUrlInitRef.current) {
+      setBaseUrl(agentConfig.uazapi_base_url)
+      baseUrlInitRef.current = true
+    }
+  }, [agentConfig])
+
+  const pararPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+  }, [])
+
+  useEffect(() => () => pararPolling(), [pararPolling])
+
+  const handleGerarQrCode = useCallback(async () => {
+    setGerandoQr(true)
+    setQrError(null)
+    const result = await gerarQrCodeUazapi()
+    setGerandoQr(false)
+
+    if (!result.ok) {
+      setQrError(result.message ?? 'Não foi possível gerar o QR Code.')
+      setQrcode(null)
+      setPairCode(null)
+      pararPolling()
+      return
+    }
+    if (result.connected) {
+      setQrcode(null)
+      setPairCode(null)
+      pararPolling()
+      return
+    }
+    setQrcode(result.qrcode ?? null)
+    setPairCode(result.pairCode ?? null)
+
+    if (!pollRef.current) {
+      pollCountRef.current = 0
+      pollRef.current = setInterval(async () => {
+        pollCountRef.current += 1
+        if (pollCountRef.current > QR_MAX_POLLS) {
+          pararPolling()
+          return
+        }
+        const poll = await gerarQrCodeUazapi()
+        if (!poll.ok) return
+        if (poll.connected) {
+          setQrcode(null)
+          setPairCode(null)
+          pararPolling()
+          return
+        }
+        if (poll.qrcode) setQrcode(poll.qrcode)
+        if (poll.pairCode) setPairCode(poll.pairCode)
+      }, QR_POLL_INTERVAL_MS)
+    }
+  }, [gerarQrCodeUazapi, pararPolling])
 
   if (!agentConfig) {
     return <div className="bg-white rounded-2xl shadow-sm p-6 text-sm text-[#8B8B8B]">Carregando configuração...</div>
@@ -24,10 +96,16 @@ export default function IntegracaoUazapi() {
 
   const status = statusMeta[agentConfig.uazapi_status]
 
+  const baseUrlAlterada = baseUrl.trim() !== '' && baseUrl.trim() !== agentConfig.uazapi_base_url
+  const podeSalvar = Boolean(novoToken.trim()) || baseUrlAlterada
+
   async function handleSalvarToken() {
-    if (!novoToken.trim()) return
+    if (!podeSalvar) return
     setSalvando(true)
-    await updateAgentConfig({ uazapi_token: novoToken.trim() })
+    const payload: Record<string, unknown> = {}
+    if (novoToken.trim()) payload.uazapi_token = novoToken.trim()
+    if (baseUrlAlterada) payload.uazapi_base_url = baseUrl.trim()
+    await updateAgentConfig(payload)
     setSalvando(false)
     setNovoToken('')
   }
@@ -68,6 +146,19 @@ export default function IntegracaoUazapi() {
         </div>
 
         <div>
+          <label className="text-xs font-medium text-[#8B8B8B] block mb-1.5">URL do servidor UazAPI</label>
+          <input
+            value={baseUrl}
+            onChange={e => setBaseUrl(e.target.value)}
+            placeholder="https://free.uazapi.com"
+            className={inputClass}
+          />
+          <p className="text-[11px] text-[#8B8B8B] mt-1.5">
+            No plano free costuma ser <span className="font-mono">https://free.uazapi.com</span>; em planos pagos, o host próprio informado pela UazAPI. Salve antes de testar a conexão.
+          </p>
+        </div>
+
+        <div>
           <label className="text-xs font-medium text-[#8B8B8B] block mb-1.5">Token da instância (header "token")</label>
           {agentConfig.uazapi_token_configurada && !novoToken && (
             <div className="flex items-center justify-between bg-[#F5F1EA] rounded-xl px-4 py-2.5 mb-2">
@@ -101,10 +192,39 @@ export default function IntegracaoUazapi() {
         </div>
       </div>
 
-      {agentConfig.uazapi_status === 'aguardando_qr' && (
-        <div className="mt-4 flex items-center gap-3 bg-[#fdf6f0] rounded-xl px-4 py-3">
-          <QrCode size={20} className="text-[#C9A66B] shrink-0" />
-          <p className="text-xs text-[#C9A66B]">Escaneie o QR Code (ou use um código de pareamento) via POST /instance/connect para conectar o número.</p>
+      {agentConfig.uazapi_status !== 'conectado' && (
+        <div className="mt-4 bg-[#fdf6f0] rounded-xl px-4 py-4">
+          {!qrcode && !pairCode && (
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <QrCode size={20} className="text-[#C9A66B] shrink-0" />
+                <p className="text-xs text-[#C9A66B]">Gere o QR Code para escanear com o WhatsApp e conectar o número.</p>
+              </div>
+              <button onClick={handleGerarQrCode} disabled={gerandoQr || !agentConfig.uazapi_token_configurada}
+                className="flex items-center gap-1.5 bg-[#C9A66B] text-white px-4 py-2 rounded-xl text-xs font-medium hover:bg-[#b8925a] transition-colors disabled:opacity-50 shrink-0">
+                {gerandoQr ? <Loader2 size={13} className="animate-spin" /> : <QrCode size={13} />}
+                {gerandoQr ? 'Gerando...' : 'Gerar QR Code'}
+              </button>
+            </div>
+          )}
+
+          {qrError && <p className="text-xs text-red-500 mt-2">{qrError}</p>}
+
+          {(qrcode || pairCode) && (
+            <div className="flex flex-col items-center gap-3 py-2">
+              {qrcode && <img src={qrcode} alt="QR Code para conectar o WhatsApp" className="w-48 h-48 rounded-lg border border-[#F5F1EA]" />}
+              {pairCode && (
+                <p className="text-sm font-mono tracking-widest text-[#2C3E3A] bg-white px-4 py-2 rounded-lg border border-[#F5F1EA]">{pairCode}</p>
+              )}
+              <p className="text-xs text-[#C9A66B] text-center max-w-xs">
+                Abra o WhatsApp no celular → Aparelhos conectados → Conectar um aparelho, e escaneie o código acima. Atualizamos automaticamente quando o número conectar.
+              </p>
+              <button onClick={handleGerarQrCode} disabled={gerandoQr}
+                className="text-xs font-medium text-[#C9A66B] hover:underline disabled:opacity-50">
+                {gerandoQr ? 'Atualizando...' : 'Gerar um novo QR Code'}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -118,10 +238,10 @@ export default function IntegracaoUazapi() {
       )}
 
       <div className="flex gap-3 mt-4">
-        {novoToken && (
+        {podeSalvar && (
           <button onClick={handleSalvarToken} disabled={salvando}
             className="bg-[#7A9B8E] text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-[#6a8a7e] transition-colors disabled:opacity-50">
-            {salvando ? 'Salvando...' : 'Salvar token'}
+            {salvando ? 'Salvando...' : 'Salvar'}
           </button>
         )}
         <button onClick={handleTestar} disabled={testando}

@@ -9,13 +9,14 @@ async function testUazapi(admin: ReturnType<typeof createAdminClient>, config: R
     return { ok: false, message: 'Token da UazAPI ainda não configurado.' }
   }
   const token = await decryptSecret(config.uazapi_token_encrypted as string)
+  const url = `${config.uazapi_base_url}/instance/status`
   try {
-    const resp = await fetch(`${config.uazapi_base_url}/instance/status`, {
+    const resp = await fetch(url, {
       headers: { token },
     })
     const data = await resp.json().catch(() => null)
     if (!resp.ok) {
-      return { ok: false, message: `UazAPI retornou ${resp.status}: ${data?.error ?? resp.statusText}` }
+      return { ok: false, message: `UazAPI retornou ${resp.status}: ${data?.error ?? resp.statusText} (URL: ${url})` }
     }
     const connected = Boolean(data?.status?.connected)
     const hasQr = Boolean(data?.instance?.qrcode)
