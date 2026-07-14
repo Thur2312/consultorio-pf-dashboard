@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { MessageCircle, CheckCircle2, XCircle, Loader2, Copy, Check, QrCode } from 'lucide-react'
 import { useAtendimentoIA } from '../../../contexts/AtendimentoIAContext'
+import HelpHint from './HelpHint'
 
 const QR_POLL_INTERVAL_MS = 5000
 const QR_MAX_POLLS = 24 // ~2 minutos de tentativas antes de parar sozinho
@@ -146,7 +147,19 @@ export default function IntegracaoUazapi() {
         </div>
 
         <div>
-          <label className="text-xs font-medium text-[#8B8B8B] block mb-1.5">URL do servidor UazAPI</label>
+          <label className="text-xs font-medium text-[#8B8B8B] mb-1.5 flex items-center gap-1.5">
+            URL do servidor UazAPI
+            <HelpHint
+              title="Onde encontrar a URL do servidor"
+              href="https://docs.uazapi.com"
+              hrefLabel="Abrir docs da UazAPI"
+              steps={[
+                'Acesse o painel da UazAPI (o mesmo onde você criou a conta e a instância).',
+                'Abra a instância do número de WhatsApp e procure pelo campo "Servidor" ou "Host" — geralmente ao lado do nome/token da instância.',
+                'No plano free costuma ser https://free.uazapi.com; em planos pagos é o endereço próprio informado pela UazAPI.',
+              ]}
+            />
+          </label>
           <input
             value={baseUrl}
             onChange={e => setBaseUrl(e.target.value)}
@@ -159,7 +172,19 @@ export default function IntegracaoUazapi() {
         </div>
 
         <div>
-          <label className="text-xs font-medium text-[#8B8B8B] block mb-1.5">Token da instância (header "token")</label>
+          <label className="text-xs font-medium text-[#8B8B8B] mb-1.5 flex items-center gap-1.5">
+            Token da instância (header "token")
+            <HelpHint
+              title="Como pegar o token da instância"
+              href="https://docs.uazapi.com"
+              hrefLabel="Abrir docs da UazAPI"
+              steps={[
+                'No painel da UazAPI, crie (ou abra) a instância correspondente a este número de WhatsApp.',
+                'Copie o token gerado na criação da instância (POST /instance/create) — é diferente do admintoken da conta, que serve só para gerenciar a conta inteira.',
+                'Cole o token aqui e clique em Salvar.',
+              ]}
+            />
+          </label>
           {agentConfig.uazapi_token_configurada && !novoToken && (
             <div className="flex items-center justify-between bg-[#F5F1EA] rounded-xl px-4 py-2.5 mb-2">
               <span className="text-sm text-[#2C3E3A] font-mono">{agentConfig.uazapi_token_mascarada}</span>

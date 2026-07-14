@@ -2,6 +2,40 @@ import { useState } from 'react'
 import { Sparkles, CheckCircle2, XCircle, Loader2, Eye, EyeOff } from 'lucide-react'
 import { useAtendimentoIA } from '../../../contexts/AtendimentoIAContext'
 import type { ProvedorIA } from '../../../types/atendimentoIA'
+import HelpHint from './HelpHint'
+
+const CHAVE_HINTS: Record<ProvedorIA, { title: string; href: string; hrefLabel: string; steps: string[] }> = {
+  anthropic: {
+    title: 'Como pegar a chave da Anthropic',
+    href: 'https://console.anthropic.com/settings/keys',
+    hrefLabel: 'Abrir console.anthropic.com',
+    steps: [
+      'Acesse console.anthropic.com e faça login (ou crie uma conta).',
+      'No menu, vá em Settings → API Keys.',
+      'Cadastre um método de pagamento em Billing — sem isso a chave é criada mas não funciona.',
+      'Clique em "Create Key", copie a chave (começa com sk-ant-...) — ela só é exibida uma vez.',
+    ],
+  },
+  openai: {
+    title: 'Como pegar a chave da OpenAI',
+    href: 'https://platform.openai.com/api-keys',
+    hrefLabel: 'Abrir platform.openai.com',
+    steps: [
+      'Acesse platform.openai.com e faça login (ou crie uma conta).',
+      'Vá em API Keys (platform.openai.com/api-keys).',
+      'Clique em "Create new secret key", copie a chave (começa com sk-...) — ela só é exibida uma vez.',
+    ],
+  },
+  outro: {
+    title: 'Chave de outro provedor',
+    href: 'https://platform.openai.com/docs/api-reference',
+    hrefLabel: 'Ver referência de API',
+    steps: [
+      'Consulte a documentação do provedor escolhido para gerar uma chave de API.',
+      'Cole a chave aqui — o teste automático de conexão não está disponível para "outro", então verifique manualmente se funciona.',
+    ],
+  },
+}
 
 const PROVEDORES: { value: ProvedorIA; label: string }[] = [
   { value: 'anthropic', label: 'Anthropic' },
@@ -77,7 +111,10 @@ export default function IntegracaoIA() {
         </div>
 
         <div className="md:col-span-2">
-          <label className="text-xs font-medium text-[#8B8B8B] block mb-1.5">Chave de API</label>
+          <label className="text-xs font-medium text-[#8B8B8B] mb-1.5 flex items-center gap-1.5">
+            Chave de API
+            <HelpHint {...CHAVE_HINTS[agentConfig.provedor_ia]} />
+          </label>
           {agentConfig.api_key_configurada && !novaChave && (
             <div className="flex items-center justify-between bg-[#F5F1EA] rounded-xl px-4 py-2.5 mb-2">
               <span className="text-sm text-[#2C3E3A] font-mono">{agentConfig.api_key_mascarada}</span>
