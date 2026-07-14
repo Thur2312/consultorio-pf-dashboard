@@ -13,6 +13,7 @@ import Landing from './pages/Landing'
 import ConfirmarConsulta from './pages/ConfirmarConsulta'
 import Gerenciar from './pages/Gerenciar'
 import AtendimentoIA from './pages/AtendimentoIA'
+import HelpHintPreview from './pages/_HelpHintPreview'
 
 function PrivateLayout() {
   const { user, loading } = useAuth()
@@ -55,6 +56,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/confirmar" element={<ConfirmarConsulta />} />
           <Route path="/gerenciar" element={<Gerenciar />} />
+          <Route path="/_preview-help" element={<HelpHintPreview />} />
 
           {/* ── Rotas privadas (exigem login) ── */}
           <Route path="/painel/*" element={<PrivateLayout />} />
